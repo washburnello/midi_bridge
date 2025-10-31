@@ -1,0 +1,12 @@
+--[[pod_format="raw",created="2025-02-23 03:39:20",modified="2025-09-24 14:53:42",revision=409]]
+-==================================================-
+							Welcome to F-12
+-==================================================-
+"May this tool help bring your creations to life"
+--[[pod_type="gfx"]]unpod("b64:bHo0AD0BAABnAQAA8QRweHUAQyA6IATwMwUgBaAFoOXgCADxDpAFgCUgBdAFIAUQFSAlACVgBbAFMAXABQAFAAUwBABTEAVABUAQAFEwBVBFAAwAsBAlEBUQBRAFICUQDgABFACAIAUgBbAVABUQABEwFgBRIAUgJXAYABCgYgAwJQAlNAAxMEWQHABB8BQlkCcAUhAF8BMVdAAACwDwCgXgBQBF8BM1MDVAFSAV8BIFkBUgFUAF8BKAAJAVIAVABfAXBaAHAEETRTA1EABQEhUgBZAkABERRAARgLYAYPARBSAFMHkAIAUASQAADwAgIBWsACEwRSkAMCA1sF8A8AnwBCXwEhXwAjXwEQVQBVAFYCXwEQVgVWAQAGAAFeAFECUlAPABAzXwEgUABfAANfAUFSAFgK8AQBXwFkVwAJAQBQBF8Bnl8DI=")
+
+
+
+End,
+
+--Thanks for Reading Me ‡

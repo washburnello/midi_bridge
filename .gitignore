@@ -1,0 +1,29 @@
+.DS_Store
+
+# Virtual env
+midi_venv/
+.venv/
+env/
+environment.yml
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Logs
+*.log
+bridge.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.python-version
+
+# Picotron
+*.info.pod
