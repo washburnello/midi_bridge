@@ -1,0 +1,440 @@
+--[[pod_format="raw",created="2025-11-02 18:31:04",modified="2025-11-02 19:02:15",revision=3,xstickers={}]]
+# Credits
+
+## pgui
+pgui – Immediate-Mode GUI Library for Picotron
+v1.0.4 | By Sergio Rodriguez Gomez
+https://srsergiorodriguez.github.io/code?lang=en | MIT License
+
+## Analysis Sheet
+
+Analysis sheet created by STVRCHLD
+
+======================================================================
+## INTRODUCTION
+======================================================================
+
+This is a complete, functional Picotron program that demonstrates nearly every
+feature of pgui v1.0.4. It builds a responsive UI with a top bar, sidebar,
+interactive widgets, and debug output.
+
+Below is a line-by-line explanation of how it integrates with pgui.
+
+======================================================================
+# LIB & INITIALIZATION
+======================================================================
+## include "pgui.lua"
+    - Loads the entire pgui library (immediate-mode GUI)
+
+## function _init()
+    dbg = "<<<DEBUG>>>"	
+    dbg2 = "<<<DEBUG2>>>"
+        - Global debug variables to inspect output trees
+
+    check = false
+    radiooptions = {"Radio 1","Radio 2","Radio 3"}
+    selectedradio = 1
+    multioptions = {"Multi 1","Multi 2","Multi 3"}
+    selectedmulti = {true,true,false}
+    slidervalue = 50
+        - Initial state for interactive widgets
+
+    pgui:set_store("disable_drop",false)
+        - Stores a flag to disable the main dropdown when topbar is open
+        - Uses main store (not alt_store)
+
+    inputtext = "click'n'write!"
+    colorselected = 1
+        - Initial values for input field and palette
+
+    --pgui:set_palette({0,16,12,7}) 
+        - Optional: override global color theme
+        - {normal, hover, active, stroke}
+
+======================================================================
+# UPDATE LOOP
+======================================================================
+## function _update()
+    pgui:refresh()
+        - REQUIRED: Resets component list, updates mouse, blink, time
+        - Without this, UI won't respond or draw
+
+    full_test()
+        - Rebuilds entire UI every frame (immediate-mode style)
+end
+
+======================================================================
+# UI CONSTRUCTION
+======================================================================
+ function full_test()
+
+## DROPDOWN MENU   | DEFINITION 
+    local dropdown_options = {
+        {"button",{text="DropButton 1",stroke=false}},
+        {"button",{text="DropButton 2",stroke=false}},
+        {"dropdown",{label="submenu",text="Submenu",stroke=false,contents={
+                {"button",{text="SubButton 1",stroke=false}},
+                {"button",{text="SubButton 2",stroke=false}},
+                {"button",{text="SubButton 3",stroke=false}},
+        }}}
+    }
+        - Nested structure: main dropdown - submenu - buttons
+        - stroke=false removes borders for clean look
+
+## MAIN SIDEBAR    | CONTENTS
+    local contents = {
+        {"box",{size=vec(100,10),color={8,8,8,9,9,9}}},
+            - Custom color: {normal=8, hover=8, active=8, stroke=9}
+            - Overrides all 4 states
+
+        {"text",{text="Text"}},
+            - Simple label
+
+        {"dropdown",{label="menu",text="Dropdown",contents=dropdown_options,
+                   disable=pgui:get_store("disable_drop")}},
+            - Main dropdown
+            - disable = true when topbar dropdown is open
+            - Uses pgui:get_store() to read state
+
+        {"text_box",{text="This is a text box\n...\n...",margin=5}},
+            - Multi-line text with padding
+
+        {"button",{text="Button"}},
+            - Standard clickable button
+
+        {"hslider",{value=slidervalue}},
+            - Slider bound to slidervalue
+            - Returns new value
+
+        {"checkbox",{value=check}},
+            - Checkbox bound to check
+
+        {"line",{size=vec(100,0)}},
+            - Horizontal separator (hack using line component)
+
+        {"multi_select",{options=multioptions,selected=selectedmulti}},
+            - Multi-checkbox list
+
+        {"line",{size=vec(100,0)}},
+        {"radio",{options=radiooptions,selected=selectedradio}},
+            - Radio button group
+
+        {"line",{size=vec(100,0)}},
+        {"text",{text="Text input:"}},
+        {"input",{label="myinput",text=inputtext}},
+            - Text input field
+            - label="myinput" - stores cursor state in alt_store
+
+        {"sprite_box",{sprite=1,active=true,hover=true,margin=1}}
+            - Clickable sprite with hover/active feedback
+    }
+
+## BUILD VRT. STACK|  
+    local stack = pgui:component("vstack",{
+        pos=vec(180,20),
+        contents=contents
+    })
+        - vstack arranges all components vertically
+        - pos=vec(180,20) - offset from top-left
+        - Returns array of all child component outputs
+
+## EXTRACT VALUES  | FROM STACK OUTPUT
+    slidervalue = stack[6]      - hslider return
+    check = stack[7]            - checkbox return
+    selectedmulti = stack[9]    - multi_select return  
+    selectedradio = stack[11]   - radio return
+    inputtext = stack[14]       - input return
+
+    dbg = stack
+        - Store entire output tree for debugging
+
+## TOPBAR CONSTR.  |  
+    local topbar_options = {
+        {"button",{text="Btn",stroke=false}},
+        {"button",{text="Btn2",stroke=false}},
+        {"dropdown",{label="topdrop",text="Drop",stroke=false,contents={...}}},
+            - Topbar dropdown
+        {"dropdown",{label="palettemenu",text="Palette",stroke=false,contents={
+            {"palette",{selected=colorselected}}
+        }}}
+            - Nested palette selector
+    }
+
+    local topbar = pgui:component("topbar",{contents=topbar_options})
+        - Full-width top bar
+        - Returns array of button/dropdown results
+
+## PALETTE SELECT  |  
+    if topbar[4][1] != nil then
+        colorselected = topbar[4][1]
+    end
+        - topbar[4] = palette component
+        - topbar[4][1] = selected color index
+
+## CLOSE BAR DROPDOWN | CLOSE TOPBAR DROPDOWN ON ANY BUTTON CLICK
+    if topbar[3][1] or topbar[3][2] or topbar[3][3] or topbar[3][4] then
+        pgui:close_dropdown("topdrop")
+    end
+        - Any click inside topbar dropdown closes it
+        - Prevents overlap issues
+
+## DISABLE MAIN DROPDOWN WHEN TOPBAR IS OPEN
+    pgui:set_store("disable_drop",#topbar[3] > 0)
+        - #topbar[3] > 0 - dropdown is open
+        - disable_drop = true - main dropdown disabled
+
+    dbg2 = topbar
+        - Debug: inspect topbar output tree
+end
+
+======================================================================
+# DRAW LOOP
+======================================================================
+## function _draw()
+    cls(6)	
+        - Clear screen to color 6 (light blue)
+
+    print("cpu: "..sub(tostring(stat(1)),1,6),400,18,10)
+        - Display CPU usage (stat(1) = FPS)
+
+    --print("SIDEBAR OUTPUT:\n"..table_tree(dbg),300,20,8)
+    --print("TOPBAR OUTPUT:\n"..table_tree(dbg2),20,100,8)	
+        - Commented debug output using table_tree()
+
+    pgui:draw()
+        - Renders all components added during _update()
+        - Handles clipping, layering, and final draw
+end
+
+======================================================================
+# DEBUG UTILITY        | table_tree()
+======================================================================
+## function table_tree(table)
+    - Recursively converts table to indented string
+    - Used to inspect pgui output structure
+    - Shows exactly what each component returns
+    - Example output:
+        <1>
+            [1]: true
+        <2>
+            [1]: 75
+        ...
+
+======================================================================
+# Process Flow
+======================================================================
+## _update() - pgui:refresh()
+   - Clears component list
+   - Updates mouse, blink, time
+
+## full_test()      | pgui:component("vstack", ...)
+   - vstack calls precomponent() on each child
+   - Measures size, computes layout
+   - Calls component() to add to draw list
+   - Returns array of child update() results
+
+## Each component:     
+   - box: draws colored rectangle
+   - text: prints string
+   - dropdown: toggles on click, nests submenu
+   - input: handles typing, cursor, backspace
+   - hslider: drag to change value
+   - etc.
+
+## pgui:draw()
+   - Sorts components by layer
+   - Applies clip() for scrollable areas
+   - Draws in order
+
+======================================================================
+# Key Features
+======================================================================
+## Immediate Mode:
+		UI rebuilt every frame in full_test()
+		
+## Nesting
+		dropdown - dropdown - button
+		
+## State Binding
+		slidervalue = stack[6]
+		
+## Return Values
+		stack[6], topbar[4][1]
+		
+## Store System
+		pgui:set_store("disable_drop", ...)
+		
+## Conflict Resolution
+		disable main dropdown when topbar open
+		
+## Output Tree
+		dbg = stack -> inspect full return structure
+		
+## Custom Styling
+		color={8,8,8,9,9,9}
+		
+## Responsive Layout
+		vstack auto-sizes to content
+		
+## Interactive Feedback
+		hover, active, clicked
+		
+## Clipping
+		automatic in scrollable (not used here, but ready)
+
+======================================================================
+# NOTES & TIPS
+======================================================================
+## 1. precomponent()
+	Use pgui:precomponent() to measure size before layout
+	
+## 2. Unique Labels
+	Use unique label strings for all inputs/dropdowns
+	
+## 3. Component Values
+	Return values from custom components
+	
+## 4. stats.memos
+	Use pgui.stats.memos to cache expensive calculations
+
+## 5. Modal Behavior
+	Call pgui:close_dropdown() for modal behavior
+	
+6. Nest vstack/hstack for complex panels
+
+======================================================================
+# THE CODE
+======================================================================
+
+## Library Inclusion
+include "pgui.lua"
+
+## _init()
+function _init()
+	dbg = "<<<DEBUG>>>"	
+	dbg2 = "<<<DEBUG2>>"
+	
+## Variables | States
+	check = false
+	radiooptions = {"Radio 1","Radio 2","Radio 3"}
+	selectedradio = 1
+	multioptions = {"Multi 1","Multi 2","Multi 3"}
+	selectedmulti = {true,true,false}
+	slidervalue = 50
+	pgui:set_store("disable_drop",false)
+	inputtext = "click'n'write!"
+	colorselected = 1
+	--pgui:set_palette({0,16,12,7}) 
+end
+
+## _update()
+function _update()
+	pgui:refresh()
+	full_test()
+end
+
+## full_test()
+function full_test()
+	local dropdown_options = {
+		{"button",{text="DropButton 1",stroke=false}},
+		{"button",{text="DropButton 2",stroke=false}},
+		{"dropdown",{label="submenu",text="Submenu",stroke=false,contents={
+				{"button",{text="SubButton 1",stroke=false}},
+				{"button",{text="SubButton 2",stroke=false}},
+				{"button",{text="SubButton 3",stroke=false}},
+		}}}
+	}
+	
+	local contents = {
+		{"box",{size=vec(100,10),color={8,8,8,9,9,9}}},
+		{"text",{text="Text"}},
+		{"dropdown",{label="menu",text="Dropdown",contents=dropdown_options,disable=pgui:get_store("disable_drop")}},
+		{"text_box",{text="This is a text box\nThis is a text box\nThis is a text box",margin=5}},
+		{"button",{text="Button"}},
+		{"hslider",{value=slidervalue}},
+		{"checkbox",{value=check}},
+		{"line",{size=vec(100,0)}}, --just a quick and dirty separator in the stack
+		{"multi_select",{options=multioptions,selected=selectedmulti}},
+		{"line",{size=vec(100,0)}},
+		{"radio",{options=radiooptions,selected=selectedradio}},
+		{"line",{size=vec(100,0)}},
+		{"text",{text="Text input:"}},
+		{"input",{label="myinput",text=inputtext}},
+		{"sprite_box",{sprite=1,active=true,hover=true,margin=1}}
+	}
+		
+	local stack = pgui:component("vstack",{pos=vec(180,20),contents=contents})
+	
+	--reinsert the outputs from the stack gui into the variables
+	slidervalue = stack[6]
+	check = stack[7]
+	selectedmulti = stack[9]  
+	selectedradio = stack[11]
+	inputtext = stack[14]
+	
+	--see the output tree from the vstack
+	dbg = stack
+	
+	local topbar_options = {
+		{"button",{text="Btn",stroke=false}},
+		{"button",{text="Btn2",stroke=false}},
+		{"dropdown",{label="topdrop",text="Drop",stroke=false,contents={
+				{"button",{text="Top Button 1",stroke=false}},
+				{"button",{text="Top Button 2",stroke=false}},
+				{"button",{text="Top Button 3",stroke=false}},
+				{"button",{text="Etc",stroke=false}},
+		}}},
+		{"dropdown",{label="palettemenu",text="Palette",stroke=false,contents={
+			{"palette",{selected=colorselected}}
+		}}}
+	}
+	
+	local topbar = pgui:component("topbar",{contents=topbar_options})
+	if topbar[4][1] != nil then
+		colorselected = topbar[4][1]
+	end
+	if topbar[3][1] or topbar[3][2] or topbar[3][3] or topbar[3][4] then
+		pgui:close_dropdown("topdrop")
+	end
+	pgui:set_store("disable_drop",#topbar[3] > 0) --to disable the menu dropdown when the overlapping topbar menu is open
+	
+	--see the output tree from the topbar
+	dbg2 = topbar
+end
+
+## _draw()
+function _draw()
+	cls(6)	
+	print("cpu: "..sub(tostring(stat(1)),1,6),400,18,10)
+	--print("SIDEBAR OUTPUT:\n"..table_tree(dbg),300,20,8)
+	--print("TOPBAR OUTPUT:\n"..table_tree(dbg2),20,100,8)	
+	pgui:draw()
+end
+
+## table_tree(table)
+function table_tree(table)
+	--Get a string representing the tree structure of a table
+	local level = 0
+	local tree = ""
+
+	if type(table) != "table" then
+		return tostring(table)
+	end
+	
+	local function recTree(table, level)
+		local tabs = ""
+		for i=1,level do tabs = tabs.."	" end	
+		
+		for k,v in pairs(table) do
+			if type(v) == "table" then
+				tree = tree..tabs.."<"..k..">\n"
+				recTree(v, level + 1)
+			else
+				tree = tree..tabs.."["..k.."]: "..tostring(v).."\n"
+			end
+		end
+	end
+	
+	recTree(table, level)
+	return tree
+end

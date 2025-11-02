@@ -1,4 +1,4 @@
---[[pod_format="raw",created="2025-05-01 03:55:20",modified="2025-09-24 15:08:14",revision=70101]]
+--[[pod_format="raw",created="2025-05-01 03:55:20",modified="2025-10-30 21:08:02",revision=70103]]
 --Design Doc
 
 --[[
@@ -53,7 +53,7 @@ Logline about this game
 --------------------------------
 --Idea Scratch List
 --------------------------------
---[ ] 
+--[ ] Make a keyboard graphic that plays the keys
 
 
 --------------------------------

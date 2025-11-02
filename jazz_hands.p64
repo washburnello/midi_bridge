@@ -2,6 +2,7 @@ picotron cartridge // www.picotron.net
 version 2
 
 :: gfx/
+:: lib/
 :: map/
 :: sfx/
 :: src/
@@ -13,9 +14,824 @@ Change Log
 
 v0.1 (2025-09-22)
 -- Initial release
+:: gooey.lua
+--[[pod_format="raw",created="2025-11-02 05:15:26",modified="2025-11-02 18:26:14",revision=111,xstickers={}]]
+-- Nothing to see here..
+
+--[[pod_type="gfx"]]unpod("b64:bHo0AEQAAABCAAAA8DNweHUAQyAQEATwFV8VkG5wHj8PHoANDyAdDA0OgF2QXXAMIByQDBA8kBwAHAAMsBwADKAxDKABEAGwARABsAUQBVA=") 
+
+-- Just turning the gears..
+
+include "main.lua"
+
+window_width = 100
+window_height = 100
+--[[
+win = create_gui({
+
+   width = 100,
+  	height = 100,
+  	title = "Jazz Hands!",
+	resizable = true,
+	
+	body = {
+		{
+			type="label", 
+			x=0, y=0, 
+			width=function() return win.w end, height=30
+		}
+	}
+})
+--]]
+win = create_gui({
+    title = "Responsive GUI",
+    x = 100, y = 80,
+    width = 400, height = 300,
+    resizable = true,
+    min_w = 200, min_h = 150,
+    body = {
+        -- Full-width header
+        {type="label", text="PICOTRON RESPONSIVE",
+         x=0, y=0,
+         width=function() return win.w end,
+         height=30,
+         style={bg_color=5, text_color=0, align="center"}},
+
+        -- Centered button
+        {type="button", text="Close",
+         x=function() return win.width/2 - 50 end,
+         y=function() return win.height - 50 end,
+         width=100, height=30,
+         onclick=function() win:close() end},
+    }
+})
+
+-- 2. Track size changes and refresh layout
+last_w, last_h = win.width, win.height
+:: lib/pgui.lua
+--[[pod_format="raw",version="1.0.1",created="2024-04-17 13:28:56",notes="An Immediate Mode GUI Library",icon=userdata("u8",16,16,"000000010101010101010101010000000000010d0d0d0d0d0d0d0d0d0d01000000010d0d0d060606060606060d0d0100010d0d0d0606060606060606060d0d01010d0d06060607070707070706060d01010d0d06060707070101070707060d01010d0d06060707070101070707060d01010d0d06060707070101070707060d01010d0d06060607070707070706060d01010d0d06060606060606060606060d01010d0d0d0606060606060606060d0d0101010d0d0d060606060606060d0d0d010101010d0d0d0d0d0d0d0d0d0d0d0101000101010d0d0d0d0d0d0d0d0d0101000000010101010101010101010101000000000001010101010101010101000000"),revision=12390,modified="2024-07-06 17:43:37",title="pgui",author="Sergio Rodriguez Gomez"]]
+--[[
+	pgui - an Immediate Mode GUI library for Picotron
+	v1.0.4
+	By Sergio Rodriguez Gomez
+	https://srsergior.itch.io/ | https://srsergiorodriguez.github.io/code?lang=en
+	MIT License
+	Donate:
+	https://ko-fi.com/srsergior | https://buymeacoffee.com/srsergior
+]]--
+
+pgui_components = {}
+
+pgui_components.unknown = {fns={}, data={text="?",_id="unknown"}}
+pgui_components.unknown.fns.draw = function(self) print("[?]", self.pos.x, self.pos.y, 8) end
+
+pgui_components.placeholder = {fns={}, data={_id="placeholder",visible=false}}
+pgui_components.placeholder.fns.draw = function(self) if (self.visible) print("[x]", self.pos.x, self.pos.y, 8) end
+
+pgui_components.text = {fns={}, data={_id="text",text="TEXT",size=vec(0,7)}}
+pgui_components.text.fns.update = function(self)
+	return self.text
+end
+pgui_components.text.fns.draw = function(self)
+	pgui:_text(self.text,self,self.color[4])
+end
+
+pgui_components.rect = {fns={}, data={_id="rect",size=vec(16,16)}}
+pgui_components.rect.fns.draw = function(self)
+	pgui:_rect(self.pos.x+self.offset.x,self.pos.y+self.offset.y,self.size.x,self.size.y,self.color[4],false)
+end
+
+pgui_components.line = {fns={}, data={_id="line",size=vec(16,16)}}
+pgui_components.line.fns.draw = function(self)
+	local x = self.pos.x+self.offset.x
+	local y = self.pos.y+self.offset.y
+	line(x,y,x+self.size.x,y+self.size.y,self.color[4])
+end
+
+pgui_components.radiocircle = {fns={}, data={_id="radiocircle",r=4,on=false}}
+pgui_components.radiocircle.fns.update = function(self)
+	self.size = vec(self.r*2,self.r*2)
+end
+pgui_components.radiocircle.fns.draw = function(self)
+	local fill = self.color[3]
+	local stroke = self.color[4]
+	pgui:_radiocirc(self,self.r,fill,stroke,self.on)
+end
+
+pgui_components.multibox = {fns={}, data={_id="multibox",size=vec(8,8),on=false}}
+pgui_components.multibox.fns.draw = function(self)
+	--this is a single box, but used for multiple selection components!
+	local fill = self.color[3]
+	local stroke = self.color[4]
+	local pos = self.pos+self.offset
+	if (self.on) pgui:_rect(pos.x,pos.y,self.size.x,self.size.y,fill,true)
+	pgui:_rect(pos.x,pos.y,self.size.x,self.size.y,stroke,false)
+end
+
+pgui_components.box = {fns={}, data={_id="box",size=vec(16,16),stroke=true,active=false,hover=false}}
+pgui_components.box.fns.draw = function(self)
+	local fill = self.color[1]
+	local mouse_events = pgui:mouse_events(self)
+	if (mouse_events.over and self.hover) fill = self.color[2]
+	if (mouse_events.left_btn and self.active) fill = self.color[3]
+	local stroke = self.stroke and self.color[4] or fill
+	pgui:_box(self, self.size.x, self.size.y, fill, stroke)
+end
+
+pgui_components.text_box = {fns={}, data={_id="text_box",text="TEXTBOX",margin=2,stroke=true,active=false,hover=false}}
+pgui_components.text_box.fns.update = function(self)
+	if pgui.stats.memos.text_width[self.text] == nil then
+		pgui.stats.memos.text_width[self.text] = pgui:get_text_width(self.text)
+	end
+	local text_width = pgui.stats.memos.text_width[self.text]
+	local lines = #split(self.text,"\n")
+	local text_height = lines == 1 and 6 or lines * 9
+	self.size = vec(text_width+(self.margin*2),(self.margin*2)+text_height)
+	pgui:component("box",{size=self.size,hover=self.hover,active=self.active,stroke=self.stroke}, self)
+	pgui:component("text",{pos=vec(self.margin,self.margin),active=self.active,text=self.text}, self)
+	return self.text
+end
+
+pgui_components.sprite = {fns={}, data={_id="sprite",sprite=0,size=vec(0,7),fn=function() end, reset_palt=true}}
+pgui_components.sprite.fns.draw = function(self)
+	self.fn()
+	pgui:_sprite(self.sprite,self)
+	if (self.reset_palt) palt()
+end
+
+pgui_components.sprite_box = {fns={}, data={_id="sprite_box",sprite=0,margin=2,stroke=true,active=false,hover=false,fn=function() end}}
+pgui_components.sprite_box.fns.update = function(self)
+	local sprite_width = get_spr(self.sprite):width() - 1
+	local sprite_height = get_spr(self.sprite):height() - 1
+	self.size = vec(sprite_width+(self.margin*2),(self.margin*2)+sprite_height)
+	local box = pgui:precomponent("box",{size=self.size,hover=self.hover,active=self.active,stroke=self.stroke},self)
+	box:_update()
+	pgui:component("sprite",{pos=vec(self.margin,self.margin),active=self.active,sprite=self.sprite,p=self.p},self)
+	return pgui:mouse_events(box).clicked
+end
+
+pgui_components.input = {fns={}, data={label="input",_id="input",text="INPUT",charlen=16,margin=2}}
+pgui_components.input.fns.update = function(self)
+	if (pgui:get_store(self.label,true) == nil) then
+		local text_width = pgui:get_text_width(self.text)
+		pgui:set_store(self.label,{
+			cursor_pos = self.margin+text_width,
+			cursor_idx = 0,
+			active = false,
+		},true)
+	end
+	
+	local text_box = pgui:precomponent("text_box",{text=self.text,margin=self.margin},self)
+	text_box:_update()
+	text_box.size.x = (6 * self.charlen) + (self.margin * 2)
+	self.size = text_box.size:copy()
+	
+	local mouse_events = pgui:mouse_events(text_box)
+	local store = pgui:get_store(self.label,true)
+	if mouse_events.clicked then
+		local relx = mouse_events.rel_pos.x
+		local cursor_pos = pgui:get_cursor_pos(self.margin,self.text,relx)
+		store.cursor_pos = cursor_pos[1]
+		store.cursor_idx = cursor_pos[2]
+		store.cursor_line = 0
+		store.active = true
+	elseif pgui:get_mouse().mb == 1 and not mouse_events.left_btn then
+		store.active = false
+	end
+	
+	if store.active then
+		local lines = #split(self.text,"\n")
+		local col = self.color[3]
+		if pgui.stats.blink then
+			pgui:component("box",{
+				pos=vec(store.cursor_pos,self.margin-1+(store.cursor_line*9)),
+				size=vec(1,8),color={col,0,0,col}
+			},self)
+		end
+		if keyp("backspace") and store.cursor_idx > 0 then
+			local removed = sub(self.text,store.cursor_idx,store.cursor_idx)
+			self.text = sub(self.text,0,store.cursor_idx-1)..sub(self.text,store.cursor_idx+1)
+			store.cursor_pos -= pgui:get_text_width(removed)
+			store.cursor_idx -= 1
+		elseif keyp("left") and store.cursor_idx > 0 then
+			local prevchar = sub(self.text,store.cursor_idx,store.cursor_idx)
+			store.cursor_pos -= pgui:get_text_width(prevchar)
+			store.cursor_idx -= 1
+		elseif keyp("right") and store.cursor_idx < #self.text then
+			local nextchar = sub(self.text,store.cursor_idx+1,store.cursor_idx+1)
+			store.cursor_pos += pgui:get_text_width(nextchar)
+			store.cursor_idx += 1
+		end
+		local is_shift = false
+		if (key("shift")) is_shift = true
+		for i,scancode in ipairs(pgui.stats.scancodes) do
+			if keyp(scancode) and self.charlen > #self.text then
+				local str = scancode == "space" and " " or scancode
+				--str = str == "enter" and "\n" or str --for future text field
+				str = str == "enter" and "" or str
+				str = is_shift and get_scancode_upper(i) or str -- Use my scancode_upper func to do the work instead of lua's upper()
+				self.text = sub(self.text,0,store.cursor_idx)..str..sub(self.text,store.cursor_idx+1)
+				store.cursor_pos += pgui:get_text_width(str)
+				store.cursor_idx += 1
+			end
+		end
+		
+		--this will help to create a text field component in the future
+		--store.cursor_line += #split(self.text,"\n") - lines
+		
+		store.cursor_pos = max(0,store.cursor_pos)
+		store.cursor_idx = max(0,store.cursor_idx)
+	end
+	
+	return self.text
+end
+
+pgui_components.button = {fns={}, data={_id="button",text="BUTTON",margin=2,stroke=true,disable=false}}
+pgui_components.button.fns.update = function(self)
+	local text_box = pgui:precomponent("text_box",{text=self.text,hover=not self.disable,active=not self.disable,stroke=self.stroke,margin=self.margin},self)
+	text_box:_update()
+	local mouse_events = pgui:mouse_events(text_box)
+	self.size = text_box.size:copy()
+	return mouse_events.clicked
+end
+
+pgui_components.vstack = {fns={}, data={_id="vstack",stroke=true,height=0,margin=3,gap=3,contents={},box=true}}
+pgui_components.vstack.fns.update = function(self)
+	self.size = vec(0,self.margin*2)
+	local y = self.margin
+	if (self.box) pgui:component("box",{size=self.size,stroke=self.stroke},self)
+	local upds = {}
+	for content in all(self.contents) do
+		local com = pgui:precomponent(content[1],content[2],self)
+		com.pos = vec(self.margin+com.pos.x,y+com.pos.y)
+		if (com._id == "dropdown") com.grow = true
+		local upd = com:_update()
+		add(upds,upd)
+		self.size.x = com.size.x > self.size.x and com.size.x + com.pos.x or self.size.x
+		self.size.y += com.size.y + self.gap
+		y += (com.size.y + self.gap)
+	end
+	self.size.x += self.margin*2
+	self.size.y = self.height != 0 and self.height or self.size.y - self.gap
+	return upds	
+end
+
+pgui_components.hstack = {fns={}, data={_id="hstack",stroke=true,width=0,margin=3,gap=3,contents={},box=true}}
+pgui_components.hstack.fns.update = function(self)
+	self.size = vec(self.margin*2,0)
+	local x = self.margin
+	if (self.box) pgui:component("box",{size=self.size,stroke=self.stroke}, self)
+	local upds = {}
+	for content in all(self.contents) do
+		local com = pgui:precomponent(content[1],content[2],self)
+		com.pos = vec(x+com.pos.x,self.margin+com.pos.y)
+		if (com._id == "dropdown") com.grow = false
+		local upd = com:_update()
+		add(upds,upd)
+		self.size.y = com.size.y > self.size.y and com.size.y + com.pos.y or self.size.y
+		self.size.x += com.size.x + self.gap
+		x += (com.size.x + self.gap)
+	end
+	self.size.y += self.margin*2
+	self.size.x = self.width > 0 and self.width or self.size.x - self.gap
+	return upds
+end
+
+pgui_components.topbar = {fns={}, data={_id="topbar",width=479,gap=3,contents={}}}
+pgui_components.topbar.fns.update = function(self)
+	return pgui:component("hstack",{gap=self.gap,width=self.width,stroke=false,margin=0,contents=self.contents},self)
+end
+
+pgui_components.dropdown = {fns={}, data={label="dd",_id="dropdown",grow=false,text="DROPDOWN",stroke=true,margin=2,gap=3,contents={},disable=false}}
+pgui_components.dropdown.fns.update = function(self)
+  if (pgui:get_store(self.label,true) == nil) pgui:set_store(self.label,false,true)
+	local button = pgui:precomponent("button",{size=self.size,stroke=self.stroke,text=self.text,margin=self.margin,disable=self.disable},self)
+	local clicked = button:_update()
+	self.size = button.size:copy()
+	pgui:component("line",{pos=vec(0,button.size.y),size=vec(self.size.x,0)},self)
+	if clicked and not self.disable then
+		local toggle = not pgui:get_store(self.label,true)
+		pgui:set_store(self.label,toggle,true)
+	end
+	if pgui:get_store(self.label,true) then
+		local y = button.size.y
+		local vstack = pgui:precomponent("vstack",{layer=self.layer+1,pos=vec(0,y),margin=self.margin,gap=self.gap,contents=self.contents},self)
+		local upd = vstack:_update()
+		if (self.grow) self.size.y += vstack.size.y
+		return upd
+	end
+	return {}
+end
+
+pgui_components.scrollable = {fns={}, data={label="scrll",_id="scrollable",scroll_x=false,scroll_y=true,size=vec(50,50),sensibility=4,content={"text_box",{text="scrollable",margin=50}}}}
+pgui_components.scrollable.fns.update = function(self)
+	if (pgui:get_store(self.label,true) == nil) pgui:set_store(self.label,{scrolling = vec(0,0)},true)
+	local store = pgui:get_store(self.label,true)
+	local com = pgui:precomponent(self.content[1],self.content[2],self)
+	com.pos = store.scrolling
+	com.clip = {self.pos.x+self.offset.x,self.pos.y+self.offset.y,self.size.x,self.size.y}
+	local upd = com:_update()
+	if (not self.scroll_x or (com.size.x < self.size.x)) self.size.x = com.size.x
+	if (not self.scroll_y or (com.size.y < self.size.y)) self.size.y = com.size.y
+			
+	function limit(com,scroller)
+		if com.size.y - scroller.size.y + com.pos.y <= 0 then
+			com.pos.y = scroller.size.y - com.size.y
+		elseif com.pos.y > 0 then
+			com.pos.y = 0
+		end
+		if com.size.x - scroller.size.x + com.pos.x <= 0 then
+			com.pos.x = scroller.size.x - com.size.x
+		elseif com.pos.x > 0 then
+			com.pos.x = 0
+		end
+	end	
+
+	local mouse_events = pgui:mouse_events(self)
+	if mouse_events.over then
+		if (self.scroll_y) store.scrolling.y += mouse_events.vs*self.sensibility
+		if (self.scroll_x) store.scrolling.x += mouse_events.hs*self.sensibility
+		limit(com,self)
+	end
+	return upd
+end
+
+pgui_components.hslider = {fns={}, data={_id="hslider",format=function(v) return v end,min=0,max=100,value=50,size=vec(100,10),stroke=true,flr=false}}
+pgui_components.hslider.fns.update = function(self)
+	local box = pgui:precomponent("box",{size=self.size,stroke=self.stroke},self)
+	box:_update()
+	local mouse_events = pgui:mouse_events(box)
+	local range = self.max - self.min
+	if mouse_events.left_btn then
+		self.value = self.min + (mouse_events.rel_pos.x / self.size.x) * range
+	end
+	self.value = mid(self.min, self.value, self.max)
+	local width = ((self.value - self.min) / range)*self.size.x
+	if (self.flr) self.value = flr(self.value)
+	local s = vec(width,self.size.y)
+	local col = {self.color[3],0,0,self.color[4]}
+	if (width > 0) pgui:component("box",{size=s,stroke=self.stroke,color=col},self)
+	local text_pos = vec(2,(self.size.y - 6) / 2)
+	pgui:component("text",{text=self.format(self.value),pos=text_pos},self)
+	return self.value
+end
+
+pgui_components.radio = {fns={}, data={_id="radio",gap=3,r=3,sep=4,selected=1,options={}}}
+pgui_components.radio.fns.update = function(self)
+	local y = 0
+	local i = 1
+	local d = self.r * 2
+	local tw = 0
+	for opt in all(self.options) do
+		if pgui.stats.memos.text_width[opt] == nil then
+			pgui.stats.memos.text_width[opt] = pgui:get_text_width(opt)
+		end
+		local text_width = pgui.stats.memos.text_width[opt]
+		tw =  text_width > tw and text_width or tw 
+		local pos = vec(0, y)
+		local on  = self.selected == i
+		local radiocircle = pgui:precomponent("radiocircle",{pos=pos,r=self.r,on=on},self)
+		radiocircle:_update()
+		local text_pos = pos+vec(d+self.sep,(d - 6) / 2)
+		pgui:component("text",{text=opt,pos=text_pos},self)
+		y += d + self.gap
+		local clicked = pgui:mouse_events(radiocircle).clicked
+		if (clicked) self.selected = i 
+		i += 1
+	end	
+	self.size = vec(tw + self.sep + d,y - self.gap)
+	return self.selected
+end
+
+pgui_components.multi_select = {fns={}, data={_id="multi_select",gap=3,box_size=7,sep=4,selected={},options={}}}
+pgui_components.multi_select.fns.update = function(self)
+	if (#self.selected < #self.options) then
+		notify("#options and #selected do not match in multi_select")
+		return
+	end
+	local y = 0
+	local i = 1
+	local d = self.box_size
+	local tw = 0
+	local selected = pgui:copy_table(self.selected)
+	for opt in all(self.options) do
+		if pgui.stats.memos.text_width[opt] == nil then
+			pgui.stats.memos.text_width[opt] = pgui:get_text_width(opt)
+		end
+		local text_width = pgui.stats.memos.text_width[opt]
+		tw =  text_width > tw and text_width or tw 
+		local pos = vec(0, y)
+		local on  = selected[i]
+		local multibox = pgui:precomponent("multibox",{pos=pos,size=vec(d,d),on=on},self)
+		multibox:_update()
+		local text_pos = pos+vec(d+self.sep,(d - 6) / 2)
+		pgui:component("text",{text=opt,pos=text_pos},self)
+		y += d + self.gap
+		local clicked = pgui:mouse_events(multibox).clicked
+		if (clicked) selected[i] = not selected[i]
+		i += 1
+	end	
+	self.size = vec(tw + self.sep + d,y - self.gap)
+	return selected
+end
+
+pgui_components.checkbox = {fns={}, data={_id="checkbox",text="CHECKBOX",value=false,box_size=8,sep=4}}
+pgui_components.checkbox.fns.update = function(self)
+	local select = pgui:precomponent("multi_select",{sep=self.sep,selected={self.value},options={self.text},box_size=self.box_size},self)
+	local upd = select:_update()
+	self.size = select.size
+	return upd[1]
+end
+
+pgui_components.palette = {fns={}, data={_id="palette",columns=4,gap=3,box_size=10,colors={0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15},selected=1}}
+pgui_components.palette.fns.update = function(self)
+	local i = 0
+  local memo_code = self.columns.."_"..self.box_size.."_"..self.gap
+  if pgui.stats.memos.palette_pos[memo_code] == nil then
+    pgui.stats.memos.palette_pos[memo_code] = {}
+  end
+  local pos = pgui.stats.memos.palette_pos[memo_code]
+	for col in all(self.colors) do
+		local new_palette = pgui:copy_table(self.color)
+		new_palette[1] = col
+		new_palette[4] = self.selected == col and new_palette[3] or new_palette[4]
+    
+    if pos[i] == nil then
+		  pos[i] = vec((i % self.columns), flr(i / self.columns))
+		  pos[i] = pos[i] * (self.box_size+self.gap)
+    end
+    
+		local box = pgui:precomponent("box",{pos=pos[i],size=vec(self.box_size,self.box_size),stroke=true,color=new_palette},self)
+		box:_update()
+		if (pgui:mouse_events(box).clicked) self.selected = col
+		i += 1
+	end
+  pgui.stats.memos.palette_pos[memo_code] = pos
+  
+	self.size = vec(
+		((self.box_size + self.gap)*self.columns)-self.gap,
+		((self.box_size+self.gap)*ceil(#self.colors / self.columns))-self.gap
+	)
+	return self.selected
+end
+
+------ end of components -------
+
+pgui_methods =  {}
+
+--CYCLE METHODS
+function pgui_methods:refresh()
+	self.components = {}
+	self.stats.t += 1
+	self.stats.blink = flr(self.stats.t / 20 % 2) == 1
+	self.stats.prev_mouse = self:copy_table(self.stats.mouse)
+	self.stats.mouse = self:get_mouse()
+end
+
+function pgui_methods:draw(callback)
+	callback = callback and callback or function() end
+	self:sort_table(self.components,"layer")
+	for component in all(self.components) do
+		if self.components.layer == 4 then
+			callback()
+		end
+		if self.stats.clipping and #component.clip == 4 then
+			clip(component.clip[1],component.clip[2],component.clip[3],component.clip[4]+1)
+			component:draw()
+			clip()
+		else
+			component:draw()
+		end
+	end	
+end
+
+--COMPONENT METHODS
+
+function pgui_methods:component(name, opts, parent_opts)
+	local template = pgui_components[name]
+	if not template then
+		notify("ERROR: pgui component '"..tostring(name).."' does not exist")
+    local component = self:new_component(pgui_components["unknown"],{})
+		return component:_update()
+	else
+    local component = self:new_component(template, opts, parent_opts)
+		return component:_update()
+	end
+end
+
+function pgui_methods:precomponent(name, opts, parent_opts)
+	local template = pgui_components[name]
+  return self:new_component(template, opts, parent_opts)
+end
+
+function pgui_methods:new_component(template, opts, parent_opts)
+	local base_data = {pos=vec(0,0),size=vec(0,0),offset=vec(0,0),color=pgui_methods:copy_table(self.stats.palette),clip={},layer=0}
+	local data = {}
+	for k,v in pairs(base_data) do
+		local value = v
+    if parent_opts then
+      if (k == "layer") value = parent_opts.layer
+      if (k == "clip") value = parent_opts.clip
+      if (k == "color") value = parent_opts.color
+      if (k == "offset") value = parent_opts.children_offset
+    end
+		if (opts[k] != nil) value = opts[k]
+		data[k] = value
+	end
+	for k,v in pairs(template.data) do
+		local value = v
+		if (opts[k] != nil) value = opts[k]
+		data[k] = value
+	end
+			
+	local fns = template.fns
+	function fns:_update()
+		if (self.draw) addcomponent(self)
+		if (self.update) then
+			self.children_offset = self.pos + self.offset
+			local upd = self:update(self.children_offset)
+			return upd == nil and self._id or upd
+		else
+			return self._id
+		end
+	end
+		
+	function addcomponent(component)
+		add(self.components, component)
+	end
+		
+	local component = setmetatable(data, {__index=template.fns})	
+	return component
+end
+
+--UPDATE METHODS
+
+function pgui_methods:close_dropdown(label)
+	self:set_store(label,false,true)
+end
+
+function pgui_methods:get_mouse()
+	local mx,my,mb,hs,vs = mouse()
+	return {mx=mx,my=my,mb=mb,hs=hs,vs=vs}
+end
+
+function pgui_methods:get_text_width(str)
+	local lines = split(str,"\n")
+	
+	function tw(text)
+		local sum = 0
+		local charlist = split(text,"")
+		for ch in all(charlist) do
+			if ch == "I" or ch == "i" or ch == "l" or ch == "1" then
+				sum += 4
+			elseif ch == "M" or ch == "T" or ch == "W" or ch == "m" or ch == "w" then
+				sum += 6
+			else
+				sum += 5
+			end
+		end
+		return sum
+	end
+	
+	if (#lines == 1) return tw(str)
+	
+	local width = 0
+	for text in all(lines) do
+		local w = tw(text)
+		width = width > w and width or w
+	end
+	
+	return width
+end
+
+function pgui_methods:get_cursor_pos(margin,text,relx)
+	local sum = margin
+	local i = 0
+	for ch in all(text) do
+		local v = 0	
+		if ch == "I" or ch == "i" or ch == "l" or ch == "1" then
+			v = 4
+		elseif ch == "M" or ch == "T" or ch == "W" or ch == "m" or ch == "w" then
+			v += 6
+		else
+			v += 5
+		end
+		if (sum + v > relx) return {sum,i}
+		sum += v
+		i += 1
+	end
+	return {sum,i}
+end
+
+function pgui_methods:get_scancodes()
+	local scancodes = {
+		"-","=","[","]","\\",";",
+		"'",",",".","/","`",
+		"0","1","2","3","4","5","6","7","8","9",
+		"a","b","c","d","e","f","g","h",
+		"i","j","k","l","m","n","o","p",
+		"q","r","s","t","u","v","w","x",
+		"y","z","space","enter"
+	}
+	return scancodes
+end
+
+function get_scancode_upper(index)
+	local scancodesupper = {
+		"_","+","{","}","|",":",
+		"\"", "<",">","?","~",
+		")","!","@","#","$","%","^","&","*","(",
+		"A","B","C","D","E","F","G","H",
+		"I","J","K","L","M","N","O","P",
+		"Q","R","S","T","U","V","W","X",
+		"Y","Z","space","enter"
+	}
+	return scancodesupper[index] -- Get index of scancodes, MAKE SURE SPECIAL CHARACTERS ARE IN THE SAME ORDER AS THEIR LOWERCASE VERSIONS
+end
+
+function pgui_methods:copy_table(table)
+	local new_table = {}
+	for k,v in pairs(table) do
+		if type(v) == "table" then
+			new_table[k] = self:copy_table(v)
+		else
+			new_table[k] = v
+		end
+	end
+	return new_table
+end
+
+function pgui_methods:mouse_events(data)
+	local mx = self.stats.mouse.mx
+	local my = self.stats.mouse.my
+	local mb = self.stats.mouse.mb
+	local hs = self.stats.mouse.hs
+	local vs = self.stats.mouse.vs
+	local pmb = self.stats.prev_mouse.mb
+	
+	--adjust response to clipping
+	local colrect = data.pos+data.offset --collision rectangle position
+	local colsize = data.size:copy() --collision rectangle size
+	
+	if self.stats.clipping then
+		if #data.clip == 4 then
+			local cx = data.clip[1]
+			local cw = data.clip[3]
+			local cy = data.clip[2]
+			local ch = data.clip[4]
+			
+			if colrect.x < cx then
+				colsize.x = (colrect.x + colsize.x) - cx
+				colrect.x = cx
+			elseif colrect.x + data.size.x > cx + cw then
+				colsize.x = colsize.x - ((colrect.x + colsize.x) - (cx +  cw))
+			end 
+			if colrect.y < cy then
+				colsize.y = (colrect.y + colsize.y) - cy
+				colrect.y = cy
+			elseif colrect.y + data.size.y > cy + ch then
+				colsize.y = colsize.y - ((colrect.y + colsize.y) - (cy +  ch))
+			end
+		end
+	end
+	---
+	
+	local collision = self:rect_collision(colrect,{x=mx,y=my},colsize,{x=1,y=1})
+	local lb = collision and mb == 1
+	local rb = collision and mb == 2
+	local clicked = pmb == 0 and lb
+	local released = pmb == 1 and collision and mb == 0
+	return {over=collision,left_btn=lb,right_btn=rb,clicked=clicked,released=released,rel_pos=vec(mx,my)-data.offset-data.pos,hs=hs,vs=vs}
+end
+
+function pgui_methods:rect_collision(apos, bpos, as, bs)
+	--check if two rectangles are colliding
+	local colliding = true
+	if (apos.x + as.x < bpos.x or
+		apos.x > bpos.x + bs.x or
+		apos.y + as.y < bpos.y or
+		apos.y > bpos.y + bs.y) then
+		colliding = false
+	end 
+	return colliding
+end
+
+--RENDER METHODS
+
+function pgui_methods:set_palette(palette)
+	if (#palette >= 4) then
+		self.stats.palette = palette
+	else
+		notify("Palette must be a table with 4 indexes")
+	end
+end
+
+function pgui_methods:activate_clipping()
+	self.stats.clipping = true
+end
+
+function pgui_methods:_text(text,com,col)
+	local x = com.pos.x+com.offset.x
+	local y = com.pos.y+com.offset.y
+	print(tostring(text),x,y,col)
+end
+
+function pgui_methods:_rect(x,y,w,h,c,f)
+	palt(0,true)
+	line(x+1,y,x+w-1,y,c)
+	line(x,y+1,x,y+h-1,c)
+	line(x+1,y+h,x+w-1,y+h,c)
+	line(x+w,y+1,x+w,y+h-1,c)
+	if f then
+		rectfill(x+1,y+1,x+w-1,y+h-1)
+	end
+end
+
+function pgui_methods:_box(com,w,h,fill,stroke)
+	local x = com.pos.x+com.offset.x
+	local y = com.pos.y+com.offset.y
+	self:_rect(x,y,w,h,fill,true)
+	self:_rect(x,y,w,h,stroke,false)
+end
+
+function pgui_methods:_radiocirc(com,r,fill,stroke,f)
+	local x = com.pos.x+com.offset.x+r
+	local y = com.pos.y+com.offset.y+r
+	if (f) circfill(x,y,r,fill)
+	circ(x,y,r,stroke)
+end
+
+function pgui_methods:_sprite(sprite,com)
+	local x = com.pos.x+com.offset.x
+	local y = com.pos.y+com.offset.y
+	spr(sprite,x,y)
+end
+
+--STORE METHODS
+
+function pgui_methods:uid()
+	local uid = split(date()," ")
+	uid = table.concat(split(uid[1],"-"),"")..table.concat(split(uid[2],":"),"")..sub(tostring(rnd() * 1000),0,3)
+	return uid
+end
+
+function pgui_methods:set_store(id,data,alt)
+	if not alt then
+		self.store[id] = data
+	else
+		self.alt_store[id] = data
+	end
+end
+
+function pgui_methods:get_store(id,alt)
+	if not alt then
+		return self.store[id]
+	else
+		return self.alt_store[id]
+	end
+end
+
+function pgui_methods:sort_table(tbl, key)
+	local n = #tbl
+	local sorted = false
+	
+	while not sorted do
+		sorted = true
+		for i = 1, n - 1 do
+			if tbl[i][key] > tbl[i + 1][key] then
+				tbl[i], tbl[i + 1] = tbl[i + 1], tbl[i]
+				sorted = false
+			end
+		end
+		n = n - 1
+	end
+end
+
+pgui = setmetatable({
+		components={},
+		store={},
+		alt_store={},
+		stats={
+			t = 0,
+			blink = false,
+			palette = {7,18,12,0},
+			clipping = false,
+			memos = {text_width={},palette_pos={}},
+			scancodes=pgui_methods:get_scancodes(),
+			mouse=pgui_methods:get_mouse(),
+			prev_mouse=pgui_methods:get_mouse()
+		}
+	},
+	{__index=pgui_methods}
+)
 :: main.lua
---[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-01 23:53:57",revision=564,xstickers={}]]
+--[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-02 17:37:17",revision=648,xstickers={}]]
 -- Quick Listener Test (Server)
+poke(0x5f2d, 1)
+
+include "sock_troll.lua"
+include "gooey.lua"
+include "lib/pgui.lua"
 
 
 function _init()
@@ -28,6 +844,9 @@ function _init()
 	Notes = {}
 	Channels = {}
 	
+	-- Create 
+	
+	
 	-- Control variables
 	controls = {
 		pitchwheel = max(8191),
@@ -39,12 +858,15 @@ function _init()
 		-- Mappings for test purposes on Code 49 MIDI keyboard.
 		-- Needs a dynamic mapper for custom control schemes.
 	}
-		
+	
+	
+	
 end
 
 
 function _update()
 	--Make socket if one does nto exist
+	--[[
 	if not Sock then
 		Sock = socket("tcp://"..IP..":"..Port)
 	end
@@ -69,10 +891,19 @@ function _update()
 		--Update Controls
 		
 	end
+	--]]
+	
+	win:update_all()
+
+   if win.w ~= last_w or win.h ~= last_h then
+       last_w, last_h = win.w, win.h
+       --win:refresh()
+	end
 end
 
 
 function _draw()
+--[[
 	cls(0)
 	print("Sock: " .. tostring(Sock.addr..":"..Sock.port), 0, 0, Sock and 11 or 8)
 	print("Info: " .. tostring(Info))
@@ -86,6 +917,16 @@ function _draw()
 			
 		end
 	end
+	--]]
+	cls(0)
+	win:update_all()
+
+   if win.w ~= last_w or win.h ~= last_h then
+       last_w, last_h = win.w, win.h
+       win:update_all()       -- <-- re-run all function() attributes
+   end
+	print(window_width)
+	print(window_height)
 end
 
 
@@ -640,7 +1481,7 @@ Logline about this game
 
 
 :: .info.pod
---[[pod,author="@washburnello",created="2025-10-12 14:49:30",icon=userdata("u8",16,16,"00000000000000000000000000000000010101010101010101010101010101010107070707070707070707070707070101070d1d0d0d1d0d0d1d0d0d1d0d070101071d0d09090d1d1d0d09090d1d070101070d0d0909090d0d0909090d0d070101070d090909090d0d090909090d070101071d0d0909090d0d0909090d1d070101070d1d0d090d0d0d0d090d1d0d0701010707070707070707070707070707010107071d1d1d1d1d1d1d1d1d070707010107071d1d1d1d1d1d1d1d1d07071d01010707070707070707070707071d0100011d1d1d1d1d1d1d1d1d1d1d1d0100000101010101010101010101010100000000000000000000000000000000000000"),modified="2025-11-01 23:53:58",notes="Midi support in Picotron",runtime=22,title="Jazz Hands",version="0.0",workspaces={{location="src/debug.lua",workspace_index=1},{location="src/design.lua#55",workspace_index=1},{location="main.lua#93,4",workspace_index=1},{location="gfx/0.gfx",workspace_index=2},{location="map/0.map",workspace_index=3},{location="sfx/0.sfx",workspace_index=4}}]]
+--[[pod,author="@washburnello",created="2025-10-12 14:49:30",icon=userdata("u8",16,16,"00000000000000000000000000000000010101010101010101010101010101010107070707070707070707070707070101070d1d0d0d1d0d0d1d0d0d1d0d070101071d0d09090d1d1d0d09090d1d070101070d0d0909090d0d0909090d0d070101070d090909090d0d090909090d070101071d0d0909090d0d0909090d1d070101070d1d0d090d0d0d0d090d1d0d0701010707070707070707070707070707010107071d1d1d1d1d1d1d1d1d070707010107071d1d1d1d1d1d1d1d1d07071d01010707070707070707070707071d0100011d1d1d1d1d1d1d1d1d1d1d1d0100000101010101010101010101010100000000000000000000000000000000000000"),modified="2025-11-02 19:54:05",notes="Midi support in Picotron",runtime=22,title="Jazz Hands",version="0.0",workspaces={{location="src/debug.lua",workspace_index=1},{location="src/design.lua#55",workspace_index=1},{location="main.lua#4,25",workspace_index=1},{location="sock_troll.lua",workspace_index=1},{location="gooey.lua#2,1",workspace_index=1},{location="lib/pgui.lua",workspace_index=1},{location="lib/pGui_api.txt#14,1",workspace_index=1},{location="lib/pGui_demo_analysis.txt#316,1",workspace_index=1},{location="gfx/0.gfx",workspace_index=2},{location="map/0.map",workspace_index=3},{location="sfx/0.sfx",workspace_index=4}}]]
 :: ReadMe.txt
 b64$LS1bW3BvZF9mb3JtYXQ9InJhdyIsY3JlYXRlZD0iMjAyNS0wMi0yMyAwMzozOToyMCIsbW9k
 aWZpZWQ9IjIwMjUtMDktMjQgMTQ6NTM6NDIiLHJldmlzaW9uPTQwOV1dCi09PT09PT09PT09PT09
@@ -657,28 +1498,396 @@ d0FnSUJXc0FDRXdSU2tBTUNBMXNGOEE4QW53QkNYd0VoWHdBalh3RVFWUUJWQUZZQ1h3RVFWZ1ZX
 QVFBR0FBRmVBRkVDVWxBUEFCQXpYd0VnVUFCZkFBTmZBVUZTQUZnSzhBUUJYd0ZrVndBSkFRQlFC
 RjhCbmw4REk9IikKCgoKRW5kLAoKLS1UaGFua3MgZm9yIFJlYWRpbmcgTWUghw==
 :: gfx/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-01 23:53:58"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
 :: gfx/0.gfx
-b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0w
-MS0xNyAxMDozNzo0NCIscmV2aXNpb249Ml1dbHo0AH4AAAASMQAA8yF7WzBdPXtibXA9cHh1AEMg
-EBAE8FYHEAfAF9AXwAcQB-BWLGZsYWdzPTAscGFuX3gIAMt5PTAsem9vbT04fSw_AB-wMQD-----
------------------------------------------------------------XUG09OH19
+b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0x
+MS0wMiAwNToyNToyNSIscmV2aXNpb249NF1dbHo0ALoAAABJMQAA8yF7WzBdPXtibXA9cHh1AEMg
+EBAE8FYHEAfAF9AXwAcQB-BWLGZsYWdzPTAscGFuX3gIAMt5PTAsem9vbT04fSw_APAhFV8VkG5w
+Hj8PHoANDyAdDA0OgF2QXXAMIByQDBA8kBwAHAAMsBwADKAxDKABEAGwBABPBRAFUGgAHR-wMQD-
+--------------------------------------------------------------_mUG09OH19
 :: info.pod
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE5OjA0OjA1Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxOTowNDowNSIscmV2aXNpb249MV1dbHo0AAQAAAADAAAAMG5pbA==
+:: lib/.info.pod
+--[[pod,created="2025-11-02 17:36:32",modified="2025-11-02 19:54:05"]]
+:: lib/pGui_api.txt
+b64$LS1bW3BvZF9mb3JtYXQ9InJhdyIsY3JlYXRlZD0iMjAyNS0xMS0wMiAxODowMzozNSIsbW9k
+aWZpZWQ9IjIwMjUtMTEtMDIgMTk6NTQ6MDUiLHJldmlzaW9uPTMseHN0aWNrZXJzPXt9XV0KLS0g
+Rm9ybWF0dGVkIGZvciBTdHJhd2JlcnJ5U1JDCgojIENyZWRpdHMKCiMjIHBndWkKcGd1aSDigJMg
+SW1tZWRpYXRlLU1vZGUgR1VJIExpYnJhcnkgZm9yIFBpY290cm9uCnYxLjAuNCB8IEJ5IFNlcmdp
+byBSb2RyaWd1ZXogR29tZXoKaHR0cHM6Ly9zcnNlcmdpb3JvZHJpZ3Vlei5naXRodWIuaW8vY29k
+ZT9sYW5nPWVuIHwgTUlUIExpY2Vuc2UKCiMjIFJlZnJlbmNlIHNoZWV0CgpUaGlzIHJlZnJlbmNl
+IHNoZWV0IHdhcyBjcmVhdGVkIGJ5IFNUVlJDSExELgoKCgojIEludHJvZHVjdGlvbgoKPT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PQojIyBPVkVSVklFVwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Ci0gSW1tZWRpYXRlLW1vZGU6IFVJIGlz
+IHJlYnVpbHQgZXZlcnkgZnJhbWUgaW4gX2RyYXcoKQotIE5vIG9iamVjdCByZXRlbnRpb246IE5v
+IG5lZWQgdG8gc3RvcmUgYnV0dG9ucywgbGFiZWxzLCBldGMuCi0gQXV0by1sYXlvdXQ6IENvbXBv
+bmVudHMgc2l6ZSB0aGVtc2VsdmVzIGJhc2VkIG9uIGNvbnRlbnQKLSBGdWxsIG5lc3Rpbmc6IHZz
+dGFjaywgaHN0YWNrLCBkcm9wZG93biwgc2Nyb2xsYWJsZQotIElucHV0IGhhbmRsaW5nOiBUZXh0
+LCBzbGlkZXJzLCByYWRpbywgY2hlY2tib3gsIG11bHRpLXNlbGVjdAotIENvbG9yIHN5c3RlbTog
+NC1zdGF0ZSBwYWxldHRlIHBlciBjb21wb25lbnQKLSBDbGlwcGluZyAmIHNjcm9sbGluZyBzdXBw
+b3J0Ci0gUGVyc2lzdGVudCBzdGF0ZSB2aWEgcGd1aTpzZXRfc3RvcmUoKSAvIGdldF9zdG9yZSgp
+Ci0gQ3VzdG9tIGNvbXBvbmVudHMgdmlhIHBndWlfY29tcG9uZW50cyB0YWJsZQoKPT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PQojIyBTRVRVUAo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09CgotLSBtYWluLmx1YQppbmNsdWRlICJwZ3VpLmx1
+YSIgICAgICAgICAgICAgICAtLSBMb2FkIGxpYnJhcnkKCmZ1bmN0aW9uIF9pbml0KCkKICAgIHBv
+a2UoMHg1ZjJkLCAxKSAgICAgICAgICAgICAgLS0gT3B0aW9uYWw6IHdpbmRvd2VkIG1vZGUKZW5k
+CgpmdW5jdGlvbiBfdXBkYXRlKCkKICAgIHBndWk6cmVmcmVzaCgpICAgICAgICAgICAgICAgLS0g
+UkVRVUlSRUQ6IFJlc2V0cyBtb3VzZSwgYmxpbmssIGNvbXBvbmVudHMKZW5kCgpmdW5jdGlvbiBf
+ZHJhdygpCiAgICBjbHMoMSkgICAgICAgICAgICAgICAgICAgICAgIC0tIENsZWFyIHNjcmVlbgog
+ICAgLS0gQnVpbGQgVUkgaGVyZQogICAgcGd1aTpjb21wb25lbnQoImJ1dHRvbiIsIHt0ZXh0PSJD
+bGljayBNZSEifSkKZW5kCgo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMjIENPUkUgQVBJCj09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0K
+IyBwZ3VpIHJlZnJlbmNlcwojIyBwZ3VpOnJlZnJlc2goKQogICAgVXNhZ2U6ICAgcGd1aTpyZWZy
+ZXNoKCkKICAgIFJldHVybnM6IOKAlAogICAgRGV0YWlsczogCiAgICAgICAgLSBDYWxsZWQgb25j
+ZSBwZXIgZnJhbWUgaW4gX3VwZGF0ZSgpCiAgICAgICAgLSBDbGVhcnMgY29tcG9uZW50IGxpc3QK
+ICAgICAgICAtIFVwZGF0ZXMgaW50ZXJuYWwgdGltZSAodCksIGJsaW5rIHN0YXRlLCBtb3VzZQog
+ICAgICAgIC0gTXVzdCBwcmVjZWRlIGFueSBwZ3VpOmNvbXBvbmVudCgpIGNhbGxzCgojIyBwZ3Vp
+OmNvbXBvbmVudChuYW1lLCBvcHRzLCBwYXJlbnRfb3B0cykKICAgIFVzYWdlOiAgIHBndWk6Y29t
+cG9uZW50KCJidXR0b24iLCB7dGV4dD0iU2F2ZSJ9KQogICAgUmV0dXJuczogSW50ZXJhY3Rpb24g
+dmFsdWUgKGNsaWNrZWQsIHZhbHVlLCBzZWxlY3RlZCwgZXRjLikKICAgIERldGFpbHM6CiAgICAg
+ICAgLSBDcmVhdGVzLCB1cGRhdGVzLCBhbmQgZHJhd3MgY29tcG9uZW50IGltbWVkaWF0ZWx5CiAg
+ICAgICAgLSBBZGRzIHRvIHJlbmRlciBsaXN0CiAgICAgICAgLSBSZXR1cm5zIHJlc3VsdCBvZiBj
+b21wb25lbnQncyB1cGRhdGUoKSBmdW5jdGlvbgogICAgICAgIC0gcGFyZW50X29wdHM6IGluaGVy
+aXRzIHBvcywgb2Zmc2V0LCBjb2xvciwgbGF5ZXIsIGNsaXAKCiMjIHBndWk6cHJlY29tcG9uZW50
+KG5hbWUsIG9wdHMsIHBhcmVudF9vcHRzKQogICAgVXNhZ2U6ICAgbG9jYWwgYm94ID0gcGd1aTpw
+cmVjb21wb25lbnQoImJveCIsIHtzaXplPXZlYyg1MCwyMCl9KQogICAgUmV0dXJuczogQ29tcG9u
+ZW50IG9iamVjdCAobm90IGRyYXduKQogICAgRGV0YWlsczoKICAgICAgICAtIENyZWF0ZXMgY29t
+cG9uZW50IHdpdGhvdXQgYWRkaW5nIHRvIGRyYXcgbGlzdAogICAgICAgIC0gVXNlZCBmb3IgbGF5
+b3V0IG1lYXN1cmVtZW50IGJlZm9yZSBkcmF3aW5nCiAgICAgICAgLSBDYWxsIGJveDpfdXBkYXRl
+KCkgdG8gY29tcHV0ZSBzaXplIGFuZCByZXR1cm4gdmFsdWUKCiMjIHBndWk6bW91c2VfZXZlbnRz
+KGNvbXBvbmVudCkKICAgIFVzYWdlOiAgIGxvY2FsIGV2ID0gcGd1aTptb3VzZV9ldmVudHMoY29t
+cCkKICAgIFJldHVybnM6IHsKICAgICAgICBvdmVyICAgICAgPSB0cnVlL2ZhbHNlLAogICAgICAg
+IGxlZnRfYnRuICA9IHRydWUgaWYgbW91c2UgZG93biBvdmVyLAogICAgICAgIHJpZ2h0X2J0biA9
+IHRydWUgaWYgcmlnaHQtY2xpY2ssCiAgICAgICAgY2xpY2tlZCAgID0gdHJ1ZSBvbiBwcmVzcywK
+ICAgICAgICByZWxlYXNlZCAgPSB0cnVlIG9uIHJlbGVhc2UsCiAgICAgICAgcmVsX3BvcyAgID0g
+dmVjKG1vdXNlLnggLSBjb21wLnBvcy54LCBtb3VzZS55IC0gY29tcC5wb3MueSksCiAgICAgICAg
+aHMgICAgICAgID0gaG9yaXpvbnRhbCBzY3JvbGwsCiAgICAgICAgdnMgICAgICAgID0gdmVydGlj
+YWwgc2Nyb2xsCiAgICB9CiAgICBEZXRhaWxzOgogICAgICAgIC0gUmVzcGVjdHMgY2xpcHBpbmcK
+ICAgICAgICAtIFVzZWQgaW50ZXJuYWxseSBieSBpbnRlcmFjdGl2ZSBjb21wb25lbnRzCgojIyBw
+Z3VpOnNldF9zdG9yZShpZCwgdmFsdWUsIGFsdCkKICAgIFVzYWdlOiAgIHBndWk6c2V0X3N0b3Jl
+KCJkcm9wZG93bl9vcGVuIiwgdHJ1ZSwgdHJ1ZSkKICAgIFJldHVybnM6IOKAlAogICAgRGV0YWls
+czoKICAgICAgICAtIFN0b3JlcyBwZXJzaXN0ZW50IHBlci1mcmFtZSBkYXRhCiAgICAgICAgLSBp
+ZDogc3RyaW5nIGtleQogICAgICAgIC0gYWx0PXRydWUg4oaSIHVzZXMgYWx0X3N0b3JlIChmb3Ig
+ZHJvcGRvd25zLCBtb2RhbHMpCiAgICAgICAgLSBhbHQ9ZmFsc2Ug4oaSIHVzZXMgbWFpbiBzdG9y
+ZQoKIyMgcGd1aTpnZXRfc3RvcmUoaWQsIGFsdCkKICAgIFVzYWdlOiAgIGxvY2FsIG9wZW4gPSBw
+Z3VpOmdldF9zdG9yZSgiZHJvcGRvd25fb3BlbiIsIHRydWUpCiAgICBSZXR1cm5zOiBTdG9yZWQg
+dmFsdWUgb3IgbmlsCiAgICBEZXRhaWxzOgogICAgICAgIC0gUmV0cmlldmVzIGZyb20gYWx0X3N0
+b3JlIGlmIGFsdD10cnVlCgojIyBwZ3VpOmFjdGl2YXRlX2NsaXBwaW5nKCkKICAgIFVzYWdlOiAg
+IHBndWk6YWN0aXZhdGVfY2xpcHBpbmcoKQogICAgUmV0dXJuczog4oCUCiAgICBEZXRhaWxzOgog
+ICAgICAgIC0gRW5hYmxlcyBjbGlwKCkgZm9yIHNjcm9sbGFibGUgcmVnaW9ucwogICAgICAgIC0g
+TXVzdCBiZSBjYWxsZWQgYmVmb3JlIHNjcm9sbGFibGUgY29udGVudAoKIyBDb2xvcgoKPT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PQojIyBDT0xPUiBTWVNURU0KPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQpFYWNoIGNvbXBvbmVudCB1c2Vz
+IGEgNC1lbGVtZW50IGNvbG9yIGFycmF5OgogICAgY29sb3IgPSB7bm9ybWFsLCBob3ZlciwgYWN0
+aXZlLCBzdHJva2V9CgpEZWZhdWx0IGdsb2JhbCBwYWxldHRlOgogICAgezcsIDE4LCAxMiwgMH0g
+IOKGkiB3aGl0ZSwgY3lhbiwgZ3JlZW4sIGJsYWNrCgpJbmRleCBtZWFuaW5nczoKICAgIFsxXSA9
+IGZpbGwgd2hlbiBpZGxlCiAgICBbMl0gPSBmaWxsIHdoZW4gbW91c2Ugb3ZlciAoaWYgaG92ZXI9
+dHJ1ZSkKICAgIFszXSA9IGZpbGwgd2hlbiBwcmVzc2VkIChpZiBhY3RpdmU9dHJ1ZSkKICAgIFs0
+XSA9IHN0cm9rZSBhbmQgdGV4dCBjb2xvcgoKU2V0IGdsb2JhbCBwYWxldHRlOgogICAgcGd1aTpz
+ZXRfcGFsZXR0ZSh7MSwgNiwgNSwgMH0pICAtLSBkYXJrIGJsdWUgdGhlbWUKCk92ZXJyaWRlIHBl
+ciBjb21wb25lbnQ6CiAgICBwZ3VpOmNvbXBvbmVudCgiYnV0dG9uIiwgewogICAgICAgIHRleHQg
+PSAiUmVkIiwKICAgICAgICBjb2xvciA9IHs4LCA5LCAxMCwgMH0gIC0tIHJlZCwgb3JhbmdlLCB5
+ZWxsb3csIGJsYWNrCiAgICB9KQoKIyBDb21wb25lbnRzCgo9PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMjIENPTVBP
+TkVOVFMgUkVGRVJFTkNFCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KCiMjIHRleHQKCnRleHQKICAgIFVzYWdlOiBw
+Z3VpOmNvbXBvbmVudCgidGV4dCIsIHt0ZXh0PSJTY29yZTogMTAwIiwgcG9zPXZlYygxMCwyMCl9
+KQogICAgT3B0aW9uczoKICAgICAgICB0ZXh0ICAgICAgOiBzdHJpbmcgICAgICAgICAgICAgICAg
+ICAtLSBUZXh0IHRvIGRpc3BsYXkKICAgICAgICBwb3MgICAgICAgOiB2ZWMoeCx5KSAgICAgICAg
+ICAgICAgICAtLSBQb3NpdGlvbiByZWxhdGl2ZSB0byBwYXJlbnQKICAgICAgICBjb2xvcls0XSAg
+OiBudW1iZXIgICAgICAgICAgICAgICAgICAtLSBUZXh0IGNvbG9yIChkZWZhdWx0OiBzdHJva2Up
+CiAgICBSZXR1cm5zOiB0ZXh0IHN0cmluZwogICAgRGV0YWlsczoKICAgICAgICAtIEF1dG8td3Jh
+cHMgb24gXG4KICAgICAgICAtIFVzZXMgaW50ZXJuYWwgZ2V0X3RleHRfd2lkdGgoKSBmb3Igc2l6
+aW5nCgojIyByZWN0CgpyZWN0CiAgICBVc2FnZTogcGd1aTpjb21wb25lbnQoInJlY3QiLCB7c2l6
+ZT12ZWMoNTAsMzApLCBwb3M9dmVjKDEwMCw1MCl9KQogICAgT3B0aW9uczoKICAgICAgICBzaXpl
+ICAgICAgOiB2ZWModyxoKSAgICAgICAgICAgICAgICAtLSBXaWR0aCBhbmQgaGVpZ2h0CiAgICAg
+ICAgcG9zICAgICAgIDogdmVjKHgseSkgICAgICAgICAgICAgICAgLS0gUG9zaXRpb24KICAgICAg
+ICBjb2xvcls0XSAgOiBudW1iZXIgICAgICAgICAgICAgICAgICAtLSBGaWxsIGNvbG9yCiAgICBS
+ZXR1cm5zOiAicmVjdCIKICAgIERldGFpbHM6CiAgICAgICAgLSBGaWxsZWQgcmVjdGFuZ2xlIG9u
+bHkgKG5vIGJvcmRlcikKICAgICAgICAtIFVzZXMgX3JlY3QoKSB3aXRoIGZpbGw9dHJ1ZSwgc3Ry
+b2tlPWZhbHNlCgotLS0gYm94IC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KYm94CiAgICBVc2FnZTogcGd1aTpjb21wb25lbnQo
+ImJveCIsIHtzaXplPXZlYyg0MCwyMCksIGhvdmVyPXRydWUsIGFjdGl2ZT10cnVlfSkKICAgIE9w
+dGlvbnM6CiAgICAgICAgc2l6ZSAgICAgIDogdmVjKHcsaCkKICAgICAgICBwb3MgICAgICAgOiB2
+ZWMoeCx5KQogICAgICAgIGhvdmVyICAgICA6IGJvb2wgKGZhbHNlKSAgICAgICAgICAgIC0tIEVu
+YWJsZSBob3ZlciBjb2xvcgogICAgICAgIGFjdGl2ZSAgICA6IGJvb2wgKGZhbHNlKSAgICAgICAg
+ICAgIC0tIEVuYWJsZSBwcmVzc2VkIGNvbG9yCiAgICAgICAgc3Ryb2tlICAgIDogYm9vbCAodHJ1
+ZSkgICAgICAgICAgICAgLS0gRHJhdyBib3JkZXIKICAgICAgICBjb2xvciAgICAgOiB7bixoLGEs
+c30KICAgIFJldHVybnM6ICJib3giCiAgICBEZXRhaWxzOgogICAgICAgIC0gRmlsbGVkICsgYm9y
+ZGVyCiAgICAgICAgLSBDaGFuZ2VzIGNvbG9yIG9uIGhvdmVyL2NsaWNrIGlmIGVuYWJsZWQKCi0t
+LSBidXR0b24gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLQpidXR0b24KICAgIFVzYWdlOiBsb2NhbCBjbGlja2VkID0gcGd1aTpjb21w
+b25lbnQoImJ1dHRvbiIsIHt0ZXh0PSJTYXZlIn0pCiAgICBPcHRpb25zOgogICAgICAgIHRleHQg
+ICAgICA6IHN0cmluZyAoIkJVVFRPTiIpCiAgICAgICAgbWFyZ2luICAgIDogbnVtYmVyICgyKSAg
+ICAgICAgICAgICAgLS0gUGFkZGluZwogICAgICAgIHN0cm9rZSAgICA6IGJvb2wgKHRydWUpCiAg
+ICAgICAgZGlzYWJsZSAgIDogYm9vbCAoZmFsc2UpICAgICAgICAgICAgLS0gR3JheXMgb3V0CiAg
+ICAgICAgcG9zICAgICAgIDogdmVjKHgseSkKICAgICAgICBjb2xvciAgICAgOiB7bixoLGEsc30K
+ICAgIFJldHVybnM6IHRydWUgb24gY2xpY2ssIGZhbHNlIG90aGVyd2lzZQogICAgRGV0YWlsczoK
+ICAgICAgICAtIEF1dG8tc2l6ZXMgdG8gdGV4dCArIG1hcmdpbgogICAgICAgIC0gVXNlcyB0ZXh0
+X2JveCBpbnRlcm5hbGx5CiAgICAgICAgLSBEaXNhYmxlZDogbm8gaG92ZXIvYWN0aXZlLCByZXR1
+cm5zIGZhbHNlCgotLS0gaW5wdXQgKHRleHQgZmllbGQpIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KaW5wdXQKICAgIFVzYWdlOiBsb2NhbCB0eHQgPSBw
+Z3VpOmNvbXBvbmVudCgiaW5wdXQiLCB7bGFiZWw9Im5hbWUiLCB0ZXh0PSIifSkKICAgIE9wdGlv
+bnM6CiAgICAgICAgbGFiZWwgICAgIDogc3RyaW5nICgiaW5wdXQiKSAgICAgICAgLS0gU3RvcmUg
+a2V5CiAgICAgICAgdGV4dCAgICAgIDogc3RyaW5nICgiSU5QVVQiKQogICAgICAgIGNoYXI=
+:: lib/pGui_demo_analysis.txt
+b64$LS1bW3BvZF9mb3JtYXQ9InJhdyIsY3JlYXRlZD0iMjAyNS0xMS0wMiAxODozMTowNCIsbW9k
+aWZpZWQ9IjIwMjUtMTEtMDIgMTk6MDI6MTUiLHJldmlzaW9uPTMseHN0aWNrZXJzPXt9XV0KIyBD
+cmVkaXRzCgojIyBwZ3VpCnBndWkg4oCTIEltbWVkaWF0ZS1Nb2RlIEdVSSBMaWJyYXJ5IGZvciBQ
+aWNvdHJvbgp2MS4wLjQgfCBCeSBTZXJnaW8gUm9kcmlndWV6IEdvbWV6Cmh0dHBzOi8vc3JzZXJn
+aW9yb2RyaWd1ZXouZ2l0aHViLmlvL2NvZGU-bGFuZz1lbiB8IE1JVCBMaWNlbnNlCgojIyBBbmFs
+eXNpcyBTaGVldAoKQW5hbHlzaXMgc2hlZXQgY3JlYXRlZCBieSBTVFZSQ0hMRAoKPT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PQojIyBJTlRST0RVQ1RJT04KPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQoKVGhpcyBpcyBhIGNvbXBsZXRlLCBm
+dW5jdGlvbmFsIFBpY290cm9uIHByb2dyYW0gdGhhdCBkZW1vbnN0cmF0ZXMgbmVhcmx5IGV2ZXJ5
+CmZlYXR1cmUgb2YgcGd1aSB2MS4wLjQuIEl0IGJ1aWxkcyBhIHJlc3BvbnNpdmUgVUkgd2l0aCBh
+IHRvcCBiYXIsIHNpZGViYXIsCmludGVyYWN0aXZlIHdpZGdldHMsIGFuZCBkZWJ1ZyBvdXRwdXQu
+CgpCZWxvdyBpcyBhIGxpbmUtYnktbGluZSBleHBsYW5hdGlvbiBvZiBob3cgaXQgaW50ZWdyYXRl
+cyB3aXRoIHBndWkuCgo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMgTElCICYgSU5JVElBTElaQVRJT04KPT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PQojIyBpbmNsdWRlICJwZ3VpLmx1YSIKICAgIC0gTG9hZHMgdGhlIGVudGlyZSBwZ3Vp
+IGxpYnJhcnkgKGltbWVkaWF0ZS1tb2RlIEdVSSkKCiMjIGZ1bmN0aW9uIF9pbml0KCkKICAgIGRi
+ZyA9ICI8PDxERUJVRz4_PiIJCiAgICBkYmcyID0gIjw8PERFQlVHMj4_PiIKICAgICAgICAtIEds
+b2JhbCBkZWJ1ZyB2YXJpYWJsZXMgdG8gaW5zcGVjdCBvdXRwdXQgdHJlZXMKCiAgICBjaGVjayA9
+IGZhbHNlCiAgICByYWRpb29wdGlvbnMgPSB7IlJhZGlvIDEiLCJSYWRpbyAyIiwiUmFkaW8gMyJ9
+CiAgICBzZWxlY3RlZHJhZGlvID0gMQogICAgbXVsdGlvcHRpb25zID0geyJNdWx0aSAxIiwiTXVs
+dGkgMiIsIk11bHRpIDMifQogICAgc2VsZWN0ZWRtdWx0aSA9IHt0cnVlLHRydWUsZmFsc2V9CiAg
+ICBzbGlkZXJ2YWx1ZSA9IDUwCiAgICAgICAgLSBJbml0aWFsIHN0YXRlIGZvciBpbnRlcmFjdGl2
+ZSB3aWRnZXRzCgogICAgcGd1aTpzZXRfc3RvcmUoImRpc2FibGVfZHJvcCIsZmFsc2UpCiAgICAg
+ICAgLSBTdG9yZXMgYSBmbGFnIHRvIGRpc2FibGUgdGhlIG1haW4gZHJvcGRvd24gd2hlbiB0b3Bi
+YXIgaXMgb3BlbgogICAgICAgIC0gVXNlcyBtYWluIHN0b3JlIChub3QgYWx0X3N0b3JlKQoKICAg
+IGlucHV0dGV4dCA9ICJjbGljayduJ3dyaXRlISIKICAgIGNvbG9yc2VsZWN0ZWQgPSAxCiAgICAg
+ICAgLSBJbml0aWFsIHZhbHVlcyBmb3IgaW5wdXQgZmllbGQgYW5kIHBhbGV0dGUKCiAgICAtLXBn
+dWk6c2V0X3BhbGV0dGUoezAsMTYsMTIsN30pIAogICAgICAgIC0gT3B0aW9uYWw6IG92ZXJyaWRl
+IGdsb2JhbCBjb2xvciB0aGVtZQogICAgICAgIC0ge25vcm1hbCwgaG92ZXIsIGFjdGl2ZSwgc3Ry
+b2tlfQoKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PQojIFVQREFURSBMT09QCj09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KIyMgZnVuY3Rp
+b24gX3VwZGF0ZSgpCiAgICBwZ3VpOnJlZnJlc2goKQogICAgICAgIC0gUkVRVUlSRUQ6IFJlc2V0
+cyBjb21wb25lbnQgbGlzdCwgdXBkYXRlcyBtb3VzZSwgYmxpbmssIHRpbWUKICAgICAgICAtIFdp
+dGhvdXQgdGhpcywgVUkgd29uJ3QgcmVzcG9uZCBvciBkcmF3CgogICAgZnVsbF90ZXN0KCkKICAg
+ICAgICAtIFJlYnVpbGRzIGVudGlyZSBVSSBldmVyeSBmcmFtZSAoaW1tZWRpYXRlLW1vZGUgc3R5
+bGUpCmVuZAoKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PQojIFVJIENPTlNUUlVDVElPTgo9PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiBm
+dW5jdGlvbiBmdWxsX3Rlc3QoKQoKIyMgRFJPUERPV04gTUVOVSAgIHwgREVGSU5JVElPTiAKICAg
+IGxvY2FsIGRyb3Bkb3duX29wdGlvbnMgPSB7CiAgICAgICAgeyJidXR0b24iLHt0ZXh0PSJEcm9w
+QnV0dG9uIDEiLHN0cm9rZT1mYWxzZX19LAogICAgICAgIHsiYnV0dG9uIix7dGV4dD0iRHJvcEJ1
+dHRvbiAyIixzdHJva2U9ZmFsc2V9fSwKICAgICAgICB7ImRyb3Bkb3duIix7bGFiZWw9InN1Ym1l
+bnUiLHRleHQ9IlN1Ym1lbnUiLHN0cm9rZT1mYWxzZSxjb250ZW50cz17CiAgICAgICAgICAgICAg
+ICB7ImJ1dHRvbiIse3RleHQ9IlN1YkJ1dHRvbiAxIixzdHJva2U9ZmFsc2V9fSwKICAgICAgICAg
+ICAgICAgIHsiYnV0dG9uIix7dGV4dD0iU3ViQnV0dG9uIDIiLHN0cm9rZT1mYWxzZX19LAogICAg
+ICAgICAgICAgICAgeyJidXR0b24iLHt0ZXh0PSJTdWJCdXR0b24gMyIsc3Ryb2tlPWZhbHNlfX0s
+CiAgICAgICAgfX19CiAgICB9CiAgICAgICAgLSBOZXN0ZWQgc3RydWN0dXJlOiBtYWluIGRyb3Bk
+b3duIC0gc3VibWVudSAtIGJ1dHRvbnMKICAgICAgICAtIHN0cm9rZT1mYWxzZSByZW1vdmVzIGJv
+cmRlcnMgZm9yIGNsZWFuIGxvb2sKCiMjIE1BSU4gU0lERUJBUiAgICB8IENPTlRFTlRTCiAgICBs
+b2NhbCBjb250ZW50cyA9IHsKICAgICAgICB7ImJveCIse3NpemU9dmVjKDEwMCwxMCksY29sb3I9
+ezgsOCw4LDksOSw5fX19LAogICAgICAgICAgICAtIEN1c3RvbSBjb2xvcjoge25vcm1hbD04LCBo
+b3Zlcj04LCBhY3RpdmU9OCwgc3Ryb2tlPTl9CiAgICAgICAgICAgIC0gT3ZlcnJpZGVzIGFsbCA0
+IHN0YXRlcwoKICAgICAgICB7InRleHQiLHt0ZXh0PSJUZXh0In19LAogICAgICAgICAgICAtIFNp
+bXBsZSBsYWJlbAoKICAgICAgICB7ImRyb3Bkb3duIix7bGFiZWw9Im1lbnUiLHRleHQ9IkRyb3Bk
+b3duIixjb250ZW50cz1kcm9wZG93bl9vcHRpb25zLAogICAgICAgICAgICAgICAgICAgZGlzYWJs
+ZT1wZ3VpOmdldF9zdG9yZSgiZGlzYWJsZV9kcm9wIil9fSwKICAgICAgICAgICAgLSBNYWluIGRy
+b3Bkb3duCiAgICAgICAgICAgIC0gZGlzYWJsZSA9IHRydWUgd2hlbiB0b3BiYXIgZHJvcGRvd24g
+aXMgb3BlbgogICAgICAgICAgICAtIFVzZXMgcGd1aTpnZXRfc3RvcmUoKSB0byByZWFkIHN0YXRl
+CgogICAgICAgIHsidGV4dF9ib3giLHt0ZXh0PSJUaGlzIGlzIGEgdGV4dCBib3hcbi4uLlxuLi4u
+IixtYXJnaW49NX19LAogICAgICAgICAgICAtIE11bHRpLWxpbmUgdGV4dCB3aXRoIHBhZGRpbmcK
+CiAgICAgICAgeyJidXR0b24iLHt0ZXh0PSJCdXR0b24ifX0sCiAgICAgICAgICAgIC0gU3RhbmRh
+cmQgY2xpY2thYmxlIGJ1dHRvbgoKICAgICAgICB7ImhzbGlkZXIiLHt2YWx1ZT1zbGlkZXJ2YWx1
+ZX19LAogICAgICAgICAgICAtIFNsaWRlciBib3VuZCB0byBzbGlkZXJ2YWx1ZQogICAgICAgICAg
+ICAtIFJldHVybnMgbmV3IHZhbHVlCgogICAgICAgIHsiY2hlY2tib3giLHt2YWx1ZT1jaGVja319
+LAogICAgICAgICAgICAtIENoZWNrYm94IGJvdW5kIHRvIGNoZWNrCgogICAgICAgIHsibGluZSIs
+e3NpemU9dmVjKDEwMCwwKX19LAogICAgICAgICAgICAtIEhvcml6b250YWwgc2VwYXJhdG9yICho
+YWNrIHVzaW5nIGxpbmUgY29tcG9uZW50KQoKICAgICAgICB7Im11bHRpX3NlbGVjdCIse29wdGlv
+bnM9bXVsdGlvcHRpb25zLHNlbGVjdGVkPXNlbGVjdGVkbXVsdGl9fSwKICAgICAgICAgICAgLSBN
+dWx0aS1jaGVja2JveCBsaXN0CgogICAgICAgIHsibGluZSIse3NpemU9dmVjKDEwMCwwKX19LAog
+ICAgICAgIHsicmFkaW8iLHtvcHRpb25zPXJhZGlvb3B0aW9ucyxzZWxlY3RlZD1zZWxlY3RlZHJh
+ZGlvfX0sCiAgICAgICAgICAgIC0gUmFkaW8gYnV0dG9uIGdyb3VwCgogICAgICAgIHsibGluZSIs
+e3NpemU9dmVjKDEwMCwwKX19LAogICAgICAgIHsidGV4dCIse3RleHQ9IlRleHQgaW5wdXQ6In19
+LAogICAgICAgIHsiaW5wdXQiLHtsYWJlbD0ibXlpbnB1dCIsdGV4dD1pbnB1dHRleHR9fSwKICAg
+ICAgICAgICAgLSBUZXh0IGlucHV0IGZpZWxkCiAgICAgICAgICAgIC0gbGFiZWw9Im15aW5wdXQi
+IC0gc3RvcmVzIGN1cnNvciBzdGF0ZSBpbiBhbHRfc3RvcmUKCiAgICAgICAgeyJzcHJpdGVfYm94
+Iix7c3ByaXRlPTEsYWN0aXZlPXRydWUsaG92ZXI9dHJ1ZSxtYXJnaW49MX19CiAgICAgICAgICAg
+IC0gQ2xpY2thYmxlIHNwcml0ZSB3aXRoIGhvdmVyL2FjdGl2ZSBmZWVkYmFjawogICAgfQoKIyMg
+QlVJTEQgVlJULiBTVEFDS3wgIAogICAgbG9jYWwgc3RhY2sgPSBwZ3VpOmNvbXBvbmVudCgidnN0
+YWNrIix7CiAgICAgICAgcG9zPXZlYygxODAsMjApLAogICAgICAgIGNvbnRlbnRzPWNvbnRlbnRz
+CiAgICB9KQogICAgICAgIC0gdnN0YWNrIGFycmFuZ2VzIGFsbCBjb21wb25lbnRzIHZlcnRpY2Fs
+bHkKICAgICAgICAtIHBvcz12ZWMoMTgwLDIwKSAtIG9mZnNldCBmcm9tIHRvcC1sZWZ0CiAgICAg
+ICAgLSBSZXR1cm5zIGFycmF5IG9mIGFsbCBjaGlsZCBjb21wb25lbnQgb3V0cHV0cwoKIyMgRVhU
+UkFDVCBWQUxVRVMgIHwgRlJPTSBTVEFDSyBPVVRQVVQKICAgIHNsaWRlcnZhbHVlID0gc3RhY2tb
+Nl0gICAgICAtIGhzbGlkZXIgcmV0dXJuCiAgICBjaGVjayA9IHN0YWNrWzddICAgICAgICAgICAg
+LSBjaGVja2JveCByZXR1cm4KICAgIHNlbGVjdGVkbXVsdGkgPSBzdGFja1s5XSAgICAtIG11bHRp
+X3NlbGVjdCByZXR1cm4gIAogICAgc2VsZWN0ZWRyYWRpbyA9IHN0YWNrWzExXSAgIC0gcmFkaW8g
+cmV0dXJuCiAgICBpbnB1dHRleHQgPSBzdGFja1sxNF0gICAgICAgLSBpbnB1dCByZXR1cm4KCiAg
+ICBkYmcgPSBzdGFjawogICAgICAgIC0gU3RvcmUgZW50aXJlIG91dHB1dCB0cmVlIGZvciBkZWJ1
+Z2dpbmcKCiMjIFRPUEJBUiBDT05TVFIuICB8ICAKICAgIGxvY2FsIHRvcGJhcl9vcHRpb25zID0g
+ewogICAgICAgIHsiYnV0dG9uIix7dGV4dD0iQnRuIixzdHJva2U9ZmFsc2V9fSwKICAgICAgICB7
+ImJ1dHRvbiIse3RleHQ9IkJ0bjIiLHN0cm9rZT1mYWxzZX19LAogICAgICAgIHsiZHJvcGRvd24i
+LHtsYWJlbD0idG9wZHJvcCIsdGV4dD0iRHJvcCIsc3Ryb2tlPWZhbHNlLGNvbnRlbnRzPXsuLi59
+fX0sCiAgICAgICAgICAgIC0gVG9wYmFyIGRyb3Bkb3duCiAgICAgICAgeyJkcm9wZG93biIse2xh
+YmVsPSJwYWxldHRlbWVudSIsdGV4dD0iUGFsZXR0ZSIsc3Ryb2tlPWZhbHNlLGNvbnRlbnRzPXsK
+ICAgICAgICAgICAgeyJwYWxldHRlIix7c2VsZWN0ZWQ9Y29sb3JzZWxlY3RlZH19CiAgICAgICAg
+fX19CiAgICAgICAgICAgIC0gTmVzdGVkIHBhbGV0dGUgc2VsZWN0b3IKICAgIH0KCiAgICBsb2Nh
+bCB0b3BiYXIgPSBwZ3VpOmNvbXBvbmVudCgidG9wYmFyIix7Y29udGVudHM9dG9wYmFyX29wdGlv
+bnN9KQogICAgICAgIC0gRnVsbC13aWR0aCB0b3AgYmFyCiAgICAgICAgLSBSZXR1cm5zIGFycmF5
+IG9mIGJ1dHRvbi9kcm9wZG93biByZXN1bHRzCgojIyBQQUxFVFRFIFNFTEVDVCAgfCAgCiAgICBp
+ZiB0b3BiYXJbNF1bMV0gIT0gbmlsIHRoZW4KICAgICAgICBjb2xvcnNlbGVjdGVkID0gdG9wYmFy
+WzRdWzFdCiAgICBlbmQKICAgICAgICAtIHRvcGJhcls0XSA9IHBhbGV0dGUgY29tcG9uZW50CiAg
+ICAgICAgLSB0b3BiYXJbNF1bMV0gPSBzZWxlY3RlZCBjb2xvciBpbmRleAoKIyMgQ0xPU0UgQkFS
+IERST1BET1dOIHwgQ0xPU0UgVE9QQkFSIERST1BET1dOIE9OIEFOWSBCVVRUT04gQ0xJQ0sKICAg
+IGlmIHRvcGJhclszXVsxXSBvciB0b3BiYXJbM11bMl0gb3IgdG9wYmFyWzNdWzNdIG9yIHRvcGJh
+clszXVs0XSB0aGVuCiAgICAgICAgcGd1aTpjbG9zZV9kcm9wZG93bigidG9wZHJvcCIpCiAgICBl
+bmQKICAgICAgICAtIEFueSBjbGljayBpbnNpZGUgdG9wYmFyIGRyb3Bkb3duIGNsb3NlcyBpdAog
+ICAgICAgIC0gUHJldmVudHMgb3ZlcmxhcCBpc3N1ZXMKCiMjIERJU0FCTEUgTUFJTiBEUk9QRE9X
+TiBXSEVOIFRPUEJBUiBJUyBPUEVOCiAgICBwZ3VpOnNldF9zdG9yZSgiZGlzYWJsZV9kcm9wIiwj
+dG9wYmFyWzNdID4gMCkKICAgICAgICAtICN0b3BiYXJbM10gPiAwIC0gZHJvcGRvd24gaXMgb3Bl
+bgogICAgICAgIC0gZGlzYWJsZV9kcm9wID0gdHJ1ZSAtIG1haW4gZHJvcGRvd24gZGlzYWJsZWQK
+CiAgICBkYmcyID0gdG9wYmFyCiAgICAgICAgLSBEZWJ1ZzogaW5zcGVjdCB0b3BiYXIgb3V0cHV0
+IHRyZWUKZW5kCgo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09CiMgRFJBVyBMT09QCj09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KIyMgZnVu
+Y3Rpb24gX2RyYXcoKQogICAgY2xzKDYpCQogICAgICAgIC0gQ2xlYXIgc2NyZWVuIHRvIGNvbG9y
+IDYgKGxpZ2h0IGJsdWUpCgogICAgcHJpbnQoImNwdTogIi4uc3ViKHRvc3RyaW5nKHN0YXQoMSkp
+LDEsNiksNDAwLDE4LDEwKQogICAgICAgIC0gRGlzcGxheSBDUFUgdXNhZ2UgKHN0YXQoMSkgPSBG
+UFMpCgogICAgLS1wcmludCgiU0lERUJBUiBPVVRQVVQ6XG4iLi50YWJsZV90cmVlKGRiZyksMzAw
+LDIwLDgpCiAgICAtLXByaW50KCJUT1BCQVIgT1VUUFVUOlxuIi4udGFibGVfdHJlZShkYmcyKSwy
+MCwxMDAsOCkJCiAgICAgICAgLSBDb21tZW50ZWQgZGVidWcgb3V0cHV0IHVzaW5nIHRhYmxlX3Ry
+ZWUoKQoKICAgIHBndWk6ZHJhdygpCiAgICAgICAgLSBSZW5kZXJzIGFsbCBjb21wb25lbnRzIGFk
+ZGVkIGR1cmluZyBfdXBkYXRlKCkKICAgICAgICAtIEhhbmRsZXMgY2xpcHBpbmcsIGxheWVyaW5n
+LCBhbmQgZmluYWwgZHJhdwplbmQKCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KIyBERUJVRyBVVElMSVRZICAgICAg
+ICB8IHRhYmxlX3RyZWUoKQo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMjIGZ1bmN0aW9uIHRhYmxlX3RyZWUodGFi
+bGUpCiAgICAtIFJlY3Vyc2l2ZWx5IGNvbnZlcnRzIHRhYmxlIHRvIGluZGVudGVkIHN0cmluZwog
+ICAgLSBVc2VkIHRvIGluc3BlY3QgcGd1aSBvdXRwdXQgc3RydWN0dXJlCiAgICAtIFNob3dzIGV4
+YWN0bHkgd2hhdCBlYWNoIGNvbXBvbmVudCByZXR1cm5zCiAgICAtIEV4YW1wbGUgb3V0cHV0Ogog
+ICAgICAgIDwxPgogICAgICAgICAgICBbMV06IHRydWUKICAgICAgICA8Mj4KICAgICAgICAgICAg
+WzFdOiA3NQogICAgICAgIC4uLgoKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQojIFByb2Nlc3MgRmxvdwo9PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09CiMjIF91cGRhdGUoKSAtIHBndWk6cmVmcmVzaCgpCiAgIC0gQ2xlYXJzIGNvbXBvbmVu
+dCBsaXN0CiAgIC0gVXBkYXRlcyBtb3VzZSwgYmxpbmssIHRpbWUKCiMjIGZ1bGxfdGVzdCgpICAg
+ICAgfCBwZ3VpOmNvbXBvbmVudCgidnN0YWNrIiwgLi4uKQogICAtIHZzdGFjayBjYWxscyBwcmVj
+b21wb25lbnQoKSBvbiBlYWNoIGNoaWxkCiAgIC0gTWVhc3VyZXMgc2l6ZSwgY29tcHV0ZXMgbGF5
+b3V0CiAgIC0gQ2FsbHMgY29tcG9uZW50KCkgdG8gYWRkIHRvIGRyYXcgbGlzdAogICAtIFJldHVy
+bnMgYXJyYXkgb2YgY2hpbGQgdXBkYXRlKCkgcmVzdWx0cwoKIyMgRWFjaCBjb21wb25lbnQ6ICAg
+ICAKICAgLSBib3g6IGRyYXdzIGNvbG9yZWQgcmVjdGFuZ2xlCiAgIC0gdGV4dDogcHJpbnRzIHN0
+cmluZwogICAtIGRyb3Bkb3duOiB0b2dnbGVzIG9uIGNsaWNrLCBuZXN0cyBzdWJtZW51CiAgIC0g
+aW5wdXQ6IGhhbmRsZXMgdHlwaW5nLCBjdXJzb3IsIGJhY2tzcGFjZQogICAtIGhzbGlkZXI6IGRy
+YWcgdG8gY2hhbmdlIHZhbHVlCiAgIC0gZXRjLgoKIyMgcGd1aTpkcmF3KCkKICAgLSBTb3J0cyBj
+b21wb25lbnRzIGJ5IGxheWVyCiAgIC0gQXBwbGllcyBjbGlwKCkgZm9yIHNjcm9sbGFibGUgYXJl
+YXMKICAgLSBEcmF3cyBpbiBvcmRlcgoKPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQojIEtleSBGZWF0dXJlcwo9PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09CiMjIEltbWVkaWF0ZSBNb2RlOgoJCVVJIHJlYnVpbHQgZXZlcnkgZnJhbWUgaW4g
+ZnVsbF90ZXN0KCkKCQkKIyMgTmVzdGluZwoJCWRyb3Bkb3duIC0gZHJvcGRvd24gLSBidXR0b24K
+CQkKIyMgU3RhdGUgQmluZGluZwoJCXNsaWRlcnZhbHVlID0gc3RhY2tbNl0KCQkKIyMgUmV0dXJu
+IFZhbHVlcwoJCXN0YWNrWzZdLCB0b3BiYXJbNF1bMV0KCQkKIyMgU3RvcmUgU3lzdGVtCgkJcGd1
+aTpzZXRfc3RvcmUoImRpc2FibGVfZHJvcCIsIC4uLikKCQkKIyMgQ29uZmxpY3QgUmVzb2x1dGlv
+bgoJCWRpc2FibGUgbWFpbiBkcm9wZG93biB3aGVuIHRvcGJhciBvcGVuCgkJCiMjIE91dHB1dCBU
+cmVlCgkJZGJnID0gc3RhY2sgLT4gaW5zcGVjdCBmdWxsIHJldHVybiBzdHJ1Y3R1cmUKCQkKIyMg
+Q3VzdG9tIFN0eWxpbmcKCQljb2xvcj17OCw4LDgsOSw5LDl9CgkJCiMjIFJlc3BvbnNpdmUgTGF5
+b3V0CgkJdnN0YWNrIGF1dG8tc2l6ZXMgdG8gY29udGVudAoJCQojIyBJbnRlcmFjdGl2ZSBGZWVk
+YmFjawoJCWhvdmVyLCBhY3RpdmUsIGNsaWNrZWQKCQkKIyMgQ2xpcHBpbmcKCQlhdXRvbWF0aWMg
+aW4gc2Nyb2xsYWJsZSAobm90IHVzZWQgaGVyZSwgYnV0IHJlYWR5KQoKPT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQoj
+IE5PVEVTICYgVElQUwo9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09CiMjIDEuIHByZWNvbXBvbmVudCgpCglVc2UgcGd1
+aTpwcmVjb21wb25lbnQoKSB0byBtZWFzdXJlIHNpemUgYmVmb3JlIGxheW91dAoJCiMjIDIuIFVu
+aXF1ZSBMYWJlbHMKCVVzZSB1bmlxdWUgbGFiZWwgc3RyaW5ncyBmb3IgYWxsIGlucHV0cy9kcm9w
+ZG93bnMKCQojIyAzLiBDb21wb25lbnQgVmFsdWVzCglSZXR1cm4gdmFsdWVzIGZyb20gY3VzdG9t
+IGNvbXBvbmVudHMKCQojIyA0LiBzdGF0cy5tZW1vcwoJVXNlIHBndWkuc3RhdHMubWVtb3MgdG8g
+Y2FjaGUgZXhwZW5zaXZlIGNhbGN1bGF0aW9ucwoKIyMgNS4gTW9kYWwgQmVoYXZpb3IKCUNhbGwg
+cGd1aTpjbG9zZV9kcm9wZG93bigpIGZvciBtb2RhbCBiZWhhdmlvcgoJCjYuIE5lc3QgdnN0YWNr
+L2hzdGFjayBmb3IgY29tcGxleCBwYW5lbHMKCj09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KIyBUSEUgQ09ERQo9PT09
+PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
+PT09PT09PT09CgojIyBMaWJyYXJ5IEluY2x1c2lvbgppbmNsdWRlICJwZ3VpLmx1YSIKCiMjIF9p
+bml0KCkKZnVuY3Rpb24gX2luaXQoKQoJZGJnID0gIjw8PERFQlVHPj4_IgkKCWRiZzIgPSAiPDw8
+REVCVUcyPj4iCgkKIyMgVmFyaWFibGVzIHwgU3RhdGVzCgljaGVjayA9IGZhbHNlCglyYWRpb29w
+dGlvbnMgPSB7IlJhZGlvIDEiLCJSYWRpbyAyIiwiUmFkaW8gMyJ9CglzZWxlY3RlZHJhZGlvID0g
+MQoJbXVsdGlvcHRpb25zID0geyJNdWx0aSAxIiwiTXVsdGkgMiIsIk11bHRpIDMifQoJc2VsZWN0
+ZWRtdWx0aSA9IHt0cnVlLHRydWUsZmFsc2V9CglzbGlkZXJ2YWx1ZSA9IDUwCglwZ3VpOnNldF9z
+dG9yZSgiZGlzYWJsZV9kcm9wIixmYWxzZSkKCWlucHV0dGV4dCA9ICJjbGljayduJ3dyaXRlISIK
+CWNvbG9yc2VsZWN0ZWQgPSAxCgktLXBndWk6c2V0X3BhbGV0dGUoezAsMTYsMTIsN30pIAplbmQK
+CiMjIF91cGRhdGUoKQpmdW5jdGlvbiBfdXBkYXRlKCkKCXBndWk6cmVmcmVzaCgpCglmdWxsX3Rl
+c3QoKQplbmQKCiMjIGZ1bGxfdGVzdCgpCmZ1bmN0aW9uIGZ1bGxfdGVzdCgpCglsb2NhbCBkcm9w
+ZG93bl9vcHRpb25zID0gewoJCXsiYnV0dG9uIix7dGV4dD0iRHJvcEJ1dHRvbiAxIixzdHJva2U9
+ZmFsc2V9fSwKCQl7ImJ1dHRvbiIse3RleHQ9IkRyb3BCdXR0b24gMiIsc3Ryb2tlPWZhbHNlfX0s
+CgkJeyJkcm9wZG93biIse2xhYmVsPSJzdWJtZW51Iix0ZXh0PSJTdWJtZW51IixzdHJva2U9ZmFs
+c2UsY29udGVudHM9ewoJCQkJeyJidXR0b24iLHt0ZXh0PSJTdWJCdXR0b24gMSIsc3Ryb2tlPWZh
+bHNlfX0sCgkJCQl7ImJ1dHRvbiIse3RleHQ9IlN1YkJ1dHRvbiAyIixzdHJva2U9ZmFsc2V9fSwK
+CQkJCXsiYnV0dG9uIix7dGV4dD0iU3ViQnV0dG9uIDMiLHN0cm9rZT1mYWxzZX19LAoJCX19fQoJ
+fQoJCglsb2NhbCBjb250ZW50cyA9IHsKCQl7ImJveCIse3NpemU9dmVjKDEwMCwxMCksY29sb3I9
+ezgsOCw4LDksOSw5fX19LAoJCXsidGV4dCIse3RleHQ9IlRleHQifX0sCgkJeyJkcm9wZG93biIs
+e2xhYmVsPSJtZW51Iix0ZXh0PSJEcm9wZG93biIsY29udGVudHM9ZHJvcGRvd25fb3B0aW9ucyxk
+aXNhYmxlPXBndWk6Z2V0X3N0b3JlKCJkaXNhYmxlX2Ryb3AiKX19LAoJCXsidGV4dF9ib3giLHt0
+ZXh0PSJUaGlzIGlzIGEgdGV4dCBib3hcblRoaXMgaXMgYSB0ZXh0IGJveFxuVGhpcyBpcyBhIHRl
+eHQgYm94IixtYXJnaW49NX19LAoJCXsiYnV0dG9uIix7dGV4dD0iQnV0dG9uIn19LAoJCXsiaHNs
+aWRlciIse3ZhbHVlPXNsaWRlcnZhbHVlfX0sCgkJeyJjaGVja2JveCIse3ZhbHVlPWNoZWNrfX0s
+CgkJeyJsaW5lIix7c2l6ZT12ZWMoMTAwLDApfX0sIC0tanVzdCBhIHF1aWNrIGFuZCBkaXJ0eSBz
+ZXBhcmF0b3IgaW4gdGhlIHN0YWNrCgkJeyJtdWx0aV9zZWxlY3QiLHtvcHRpb25zPW11bHRpb3B0
+aW9ucyxzZWxlY3RlZD1zZWxlY3RlZG11bHRpfX0sCgkJeyJsaW5lIix7c2l6ZT12ZWMoMTAwLDAp
+fX0sCgkJeyJyYWRpbyIse29wdGlvbnM9cmFkaW9vcHRpb25zLHNlbGVjdGVkPXNlbGVjdGVkcmFk
+aW99fSwKCQl7ImxpbmUiLHtzaXplPXZlYygxMDAsMCl9fSwKCQl7InRleHQiLHt0ZXh0PSJUZXh0
+IGlucHV0OiJ9fSwKCQl7ImlucHV0Iix7bGFiZWw9Im15aW5wdXQiLHRleHQ9aW5wdXR0ZXh0fX0s
+CgkJeyJzcHJpdGVfYm94Iix7c3ByaXRlPTEsYWN0aXZlPXRydWUsaG92ZXI9dHJ1ZSxtYXJnaW49
+MX19Cgl9CgkJCglsb2NhbCBzdGFjayA9IHBndWk6Y29tcG9uZW50KCJ2c3RhY2siLHtwb3M9dmVj
+KDE4MCwyMCksY29udGVudHM9Y29udGVudHN9KQoJCgktLXJlaW5zZXJ0IHRoZSBvdXRwdXRzIGZy
+b20gdGhlIHN0YWNrIGd1aSBpbnRvIHRoZSB2YXJpYWJsZXMKCXNsaWRlcnZhbHVlID0gc3RhY2tb
+Nl0KCWNoZWNrID0gc3RhY2tbN10KCXNlbGVjdGVkbXVsdGkgPSBzdGFja1s5XSAgCglzZWxlY3Rl
+ZHJhZGlvID0gc3RhY2tbMTFdCglpbnB1dHRleHQgPSBzdGFja1sxNF0KCQoJLS1zZWUgdGhlIG91
+dHB1dCB0cmVlIGZyb20gdGhlIHZzdGFjawoJZGJnID0gc3RhY2sKCQoJbG9jYWwgdG9wYmFyX29w
+dGlvbnMgPSB7CgkJeyJidXR0b24iLHt0ZXh0PSJCdG4iLHN0cm9rZT1mYWxzZX19LAoJCXsiYnV0
+dG9uIix7dGV4dD0iQnRuMiIsc3Ryb2tlPWZhbHNlfX0sCgkJeyJkcm9wZG93biIse2xhYmVsPSJ0
+b3Bkcm9wIix0ZXh0PSJEcm9wIixzdHJva2U9ZmFsc2UsY29udGVudHM9ewoJCQkJeyJidXR0b24i
+LHt0ZXh0PSJUb3AgQnV0dG9uIDEiLHN0cm9rZT1mYWxzZX19LAoJCQkJeyJidXR0b24iLHt0ZXh0
+PSJUb3AgQnV0dG9uIDIiLHN0cm9rZT1mYWxzZX19LAoJCQkJeyJidXR0b24iLHt0ZXh0PSJUb3Ag
+QnV0dG9uIDMiLHN0cm9rZT1mYWxzZX19LAoJCQkJeyJidXR0b24iLHt0ZXh0PSJFdGMiLHN0cm9r
+ZT1mYWxzZX19LAoJCX19fSwKCQl7ImRyb3Bkb3duIix7bGFiZWw9InBhbGV0dGVtZW51Iix0ZXh0
+PSJQYWxldHRlIixzdHJva2U9ZmFsc2UsY29udGVudHM9ewoJCQl7InBhbGV0dGUiLHtzZWxlY3Rl
+ZD1jb2xvcnNlbGVjdGVkfX0KCQl9fX0KCX0KCQoJbG9jYWwgdG9wYmFyID0gcGd1aTpjb21wb25l
+bnQoInRvcGJhciIse2NvbnRlbnRzPXRvcGJhcl9vcHRpb25zfSkKCWlmIHRvcGJhcls0XVsxXSAh
+PSBuaWwgdGhlbgoJCWNvbG9yc2VsZWN0ZWQgPSB0b3BiYXJbNF1bMV0KCWVuZAoJaWYgdG9wYmFy
+WzNdWzFdIG9yIHRvcGJhclszXVsyXSBvciB0b3BiYXJbM11bM10gb3IgdG9wYmFyWzNdWzRdIHRo
+ZW4KCQlwZ3VpOmNsb3NlX2Ryb3Bkb3duKCJ0b3Bkcm9wIikKCWVuZAoJcGd1aTpzZXRfc3RvcmUo
+ImRpc2FibGVfZHJvcCIsI3RvcGJhclszXSA_IDApIC0tdG8gZGlzYWJsZSB0aGUgbWVudSBkcm9w
+ZG93biB3aGVuIHRoZSBvdmVybGFwcGluZyB0b3BiYXIgbWVudSBpcyBvcGVuCgkKCS0tc2VlIHRo
+ZSBvdXRwdXQgdHJlZSBmcm9tIHRoZSB0b3BiYXIKCWRiZzIgPSB0b3BiYXIKZW5kCgojIyBfZHJh
+dygpCmZ1bmN0aW9uIF9kcmF3KCkKCWNscyg2KQkKCXByaW50KCJjcHU6ICIuLnN1Yih0b3N0cmlu
+ZyhzdGF0KDEpKSwxLDYpLDQwMCwxOCwxMCkKCS0tcHJpbnQoIlNJREVCQVIgT1VUUFVUOlxuIi4u
+dGFibGVfdHJlZShkYmcpLDMwMCwyMCw4KQoJLS1wcmludCgiVE9QQkFSIE9VVFBVVDpcbiIuLnRh
+YmxlX3RyZWUoZGJnMiksMjAsMTAwLDgpCQoJcGd1aTpkcmF3KCkKZW5kCgojIyB0YWJsZV90cmVl
+KHRhYmxlKQpmdW5jdGlvbiB0YWJsZV90cmVlKHRhYmxlKQoJLS1HZXQgYSBzdHJpbmcgcmVwcmVz
+ZW50aW5nIHRoZSB0cmVlIHN0cnVjdHVyZSBvZiBhIHRhYmxlCglsb2NhbCBsZXZlbCA9IDAKCWxv
+Y2FsIHRyZWUgPSAiIgoKCWlmIHR5cGUodGFibGUpICE9ICJ0YWJsZSIgdGhlbgoJCXJldHVybiB0
+b3N0cmluZyh0YWJsZSkKCWVuZAoJCglsb2NhbCBmdW5jdGlvbiByZWNUcmVlKHRhYmxlLCBsZXZl
+bCkKCQlsb2NhbCB0YWJzID0gIiIKCQlmb3IgaT0xLGxldmVsIGRvIHRhYnMgPSB0YWJzLi4iCSIg
+ZW5kCQoJCQoJCWZvciBrLHYgaW4gcGFpcnModGFibGUpIGRvCgkJCWlmIHR5cGUodikgPT0gInRh
+YmxlIiB0aGVuCgkJCQl0cmVlID0gdHJlZS4udGFicy4uIjwiLi5rLi4iPlxuIgoJCQkJcmVjVHJl
+ZSh2LCBsZXZlbCArIDEpCgkJCWVsc2UKCQkJCXRyZWUgPSB0cmVlLi50YWJzLi4iWyIuLmsuLiJd
+OiAiLi50b3N0cmluZyh2KS4uIlxuIgoJCQllbmQKCQllbmQKCWVuZAoJCglyZWNUcmVlKHRhYmxl
+LCBsZXZlbCkKCXJldHVybiB0cmVlCmVuZA==
 :: listener.pod
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE3OjAzOjU2Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxNzoxMjozOSIscmV2aXNpb249NDI4M11dbHo0AC8AAAAtAAAA8B57YWRkcj0ibG9jYWxo
 b3N0IixpZD0xOSxwb3J0PTg4OTkscHJvdD0idGNwIn0=
 :: map/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-01 23:53:58"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
 :: map/0.map
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxNTowOToyMCIscmV2aXNpb249Ml1dbHo0AEwAAABQAAAA8Rx7e2JtcD1weHUATIAgIAD-
 AAD---8DLGhpZGRlbj1mYWxzZSxwYW5feD0wCADSeT0wLHRpbGVfaD0xNgoAEHcKAIB6b29tPTF9
 fQ==
 :: sfx/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-01 23:53:58"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
 :: sfx/0.sfx
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTMxIDA4OjMwOjI4Iixtb2RpZmllZD0iMjAyNS0x
 MC0zMCAwMzoxODoxMiIscmV2aXNpb249Ml1dbHo0ADsCAAAYCwAA-zBweHUAAygAAAQABA9AEAIO
@@ -696,5 +1905,5 @@ b-AJARAGBC0A----yR--AQCsv8gPQAAPEEDzsPD-AQD-6lD-----KQ==
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE4OjU0OjA4Iixtb2RpZmllZD0iMjAyNS0x
 MC0zMCAwMTozNTowMSIscmV2aXNpb249MTY4OTRdXWx6NAAEAAAAAwAAADBuaWw=
 :: src/.info.pod
---[[pod,created="2025-09-24 14:52:47",modified="2025-11-01 23:53:58"]]
+--[[pod,created="2025-09-24 14:52:47",modified="2025-11-02 19:54:05"]]
 :: [eoc]

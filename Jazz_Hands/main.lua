@@ -1,5 +1,10 @@
---[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-10-30 03:29:49",revision=533]]
+--[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-02 17:37:17",revision=648,xstickers={}]]
 -- Quick Listener Test (Server)
+poke(0x5f2d, 1)
+
+include "sock_troll.lua"
+include "gooey.lua"
+include "lib/pgui.lua"
 
 
 function _init()
@@ -11,16 +16,34 @@ function _init()
 	Info = nil
 	Notes = {}
 	Channels = {}
+	
+	-- Create 
+	
+	
+	-- Control variables
+	controls = {
+		pitchwheel = max(8191),
+		modwheel = max(127),
+		masterVol = max(127)
+	}
+		-- No Pad Support at this time.
+	conMap = {
+		-- Mappings for test purposes on Code 49 MIDI keyboard.
+		-- Needs a dynamic mapper for custom control schemes.
+	}
+	
+	
+	
 end
 
 
 function _update()
 	--Make socket if one does nto exist
+	--[[
 	if not Sock then
 		Sock = socket("tcp://"..IP..":"..Port)
 	end
 		
-	--Scan for new clients
 	if Sock then
 		Info = Sock:read()
 	end
@@ -34,14 +57,28 @@ function _update()
 			local _midi_event = {}
 			_midi_event = split(_raw_midi[i], ":")
 			spawn_note(unpack(_midi_event))
+			update_controls(unpack(_midi_event))
+			
 		end
+		
+		--Update Controls
+		
+	end
+	--]]
+	
+	win:update_all()
+
+   if win.w ~= last_w or win.h ~= last_h then
+       last_w, last_h = win.w, win.h
+       --win:refresh()
 	end
 end
 
 
 function _draw()
+--[[
 	cls(0)
-	print("Sock: " .. tostring(Sock), 0, 0, Sock and 11 or 8)
+	print("Sock: " .. tostring(Sock.addr..":"..Sock.port), 0, 0, Sock and 11 or 8)
 	print("Info: " .. tostring(Info))
 	
 	for i = 1, 2 do
@@ -50,32 +87,38 @@ function _draw()
 			print("Channel "..j*i..": Instrument " ..	stat(400+(j*i), 1), -100+(i*200), 10+(j*50), 7)
 			print("Channel "..j*i..": Volume " ..		stat(400+(j*i), 2), -100+(i*200), 20+(j*50), 7)
 			print("Channel "..j*i..": Volume " ..		stat(400+(j*i), 3), -100+(i*200), 30+(j*50), 7)
+			
 		end
 	end
-	
---	print("Channel 2: Held " ..			stat(401, 0), 300, 50, 7)
---	print("Channel 2: Instrument " ..	stat(401, 1), 300, 60, 7)
---	print("Channel 2: Volume " ..			stat(401, 2), 300, 70, 7)
---	print("Channel 2: Volume " ..			stat(401, 3), 300, 80, 7)
---	
---	print("Channel 3: Held " ..			stat(402, 0), 300, 100, 7)
---	print("Channel 3: Instrument " ..	stat(402, 1), 300, 110, 7)
---	print("Channel 3: Volume " ..			stat(402, 2), 300, 120, 7)
---	print("Channel 3: Volume " ..			stat(402, 3), 300, 130, 7)
---	
---	print("Channel 4: Held " ..			stat(403, 0), 300, 150, 7)
---	print("Channel 4: Instrument " ..	stat(403, 1), 300, 160, 7)
---	print("Channel 4: Volume " ..			stat(403, 2), 300, 170, 7)
---	print("Channel 4: Volume " ..			stat(403, 3), 300, 180, 7)
+	--]]
+	cls(0)
+	win:update_all()
+
+   if win.w ~= last_w or win.h ~= last_h then
+       last_w, last_h = win.w, win.h
+       win:update_all()       -- <-- re-run all function() attributes
+   end
+	print(window_width)
+	print(window_height)
 end
 
 
 function spawn_note(_state, _note, _velocity, _channel)
 	if _state == "NOTE_ON" then
-		Notes[_note] = {state=_state, note=_note, channel=_channel}
-		note(Notes[_note].note, 8, 20, nil, nil, Notes[_note].channel)
+		Notes[_note] = {state=_state, note=_note + (controls.pitchwheel / 8191), channel=_channel}
+		note(Notes[_note].note, 8, controls.masterVol * (_velocity/255), nil, nil, Notes[_note].channel)
 	elseif _state == "NOTE_OFF" then
 		note(0, 0, 0, nil, nil, Notes[_note].channel)
 	end
 end
 
+
+function update_controls(_state, _control, _value)
+	if _state == "CONTROL_CHANGE" then
+		controls._control = _value
+		print("Control Change   " .. tostring(_control) .. " " .. tostring(_value))
+	elseif _state == "PITCHWHEEL" then
+		controls.pitchwheel = _value
+		print("Pitchwheel:   " .. tostring(_value))
+	end
+end

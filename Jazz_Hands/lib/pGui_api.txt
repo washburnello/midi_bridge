@@ -1,0 +1,216 @@
+--[[pod_format="raw",created="2025-11-02 18:03:35",modified="2025-11-02 19:54:05",revision=3,xstickers={}]]
+-- Formatted for StrawberrySRC
+
+# Credits
+
+## pgui
+pgui – Immediate-Mode GUI Library for Picotron
+v1.0.4 | By Sergio Rodriguez Gomez
+https://srsergiorodriguez.github.io/code?lang=en | MIT License
+
+## Refrence sheet
+
+This refrence sheet was created by STVRCHLD.
+
+
+
+# Introduction
+
+======================================================================
+## OVERVIEW
+======================================================================
+- Immediate-mode: UI is rebuilt every frame in _draw()
+- No object retention: No need to store buttons, labels, etc.
+- Auto-layout: Components size themselves based on content
+- Full nesting: vstack, hstack, dropdown, scrollable
+- Input handling: Text, sliders, radio, checkbox, multi-select
+- Color system: 4-state palette per component
+- Clipping & scrolling support
+- Persistent state via pgui:set_store() / get_store()
+- Custom components via pgui_components table
+
+======================================================================
+## SETUP
+======================================================================
+
+-- main.lua
+include "pgui.lua"               -- Load library
+
+function _init()
+    poke(0x5f2d, 1)              -- Optional: windowed mode
+end
+
+function _update()
+    pgui:refresh()               -- REQUIRED: Resets mouse, blink, components
+end
+
+function _draw()
+    cls(1)                       -- Clear screen
+    -- Build UI here
+    pgui:component("button", {text="Click Me!"})
+end
+
+======================================================================
+## CORE API
+======================================================================
+# pgui refrences
+## pgui:refresh()
+    Usage:   pgui:refresh()
+    Returns: —
+    Details: 
+        - Called once per frame in _update()
+        - Clears component list
+        - Updates internal time (t), blink state, mouse
+        - Must precede any pgui:component() calls
+
+## pgui:component(name, opts, parent_opts)
+    Usage:   pgui:component("button", {text="Save"})
+    Returns: Interaction value (clicked, value, selected, etc.)
+    Details:
+        - Creates, updates, and draws component immediately
+        - Adds to render list
+        - Returns result of component's update() function
+        - parent_opts: inherits pos, offset, color, layer, clip
+
+## pgui:precomponent(name, opts, parent_opts)
+    Usage:   local box = pgui:precomponent("box", {size=vec(50,20)})
+    Returns: Component object (not drawn)
+    Details:
+        - Creates component without adding to draw list
+        - Used for layout measurement before drawing
+        - Call box:_update() to compute size and return value
+
+## pgui:mouse_events(component)
+    Usage:   local ev = pgui:mouse_events(comp)
+    Returns: {
+        over      = true/false,
+        left_btn  = true if mouse down over,
+        right_btn = true if right-click,
+        clicked   = true on press,
+        released  = true on release,
+        rel_pos   = vec(mouse.x - comp.pos.x, mouse.y - comp.pos.y),
+        hs        = horizontal scroll,
+        vs        = vertical scroll
+    }
+    Details:
+        - Respects clipping
+        - Used internally by interactive components
+
+## pgui:set_store(id, value, alt)
+    Usage:   pgui:set_store("dropdown_open", true, true)
+    Returns: —
+    Details:
+        - Stores persistent per-frame data
+        - id: string key
+        - alt=true → uses alt_store (for dropdowns, modals)
+        - alt=false → uses main store
+
+## pgui:get_store(id, alt)
+    Usage:   local open = pgui:get_store("dropdown_open", true)
+    Returns: Stored value or nil
+    Details:
+        - Retrieves from alt_store if alt=true
+
+## pgui:activate_clipping()
+    Usage:   pgui:activate_clipping()
+    Returns: —
+    Details:
+        - Enables clip() for scrollable regions
+        - Must be called before scrollable content
+
+# Color
+
+======================================================================
+## COLOR SYSTEM
+======================================================================
+Each component uses a 4-element color array:
+    color = {normal, hover, active, stroke}
+
+Default global palette:
+    {7, 18, 12, 0}  → white, cyan, green, black
+
+Index meanings:
+    [1] = fill when idle
+    [2] = fill when mouse over (if hover=true)
+    [3] = fill when pressed (if active=true)
+    [4] = stroke and text color
+
+Set global palette:
+    pgui:set_palette({1, 6, 5, 0})  -- dark blue theme
+
+Override per component:
+    pgui:component("button", {
+        text = "Red",
+        color = {8, 9, 10, 0}  -- red, orange, yellow, black
+    })
+
+# Components
+
+======================================================================
+## COMPONENTS REFERENCE
+======================================================================
+
+## text
+
+text
+    Usage: pgui:component("text", {text="Score: 100", pos=vec(10,20)})
+    Options:
+        text      : string                  -- Text to display
+        pos       : vec(x,y)                -- Position relative to parent
+        color[4]  : number                  -- Text color (default: stroke)
+    Returns: text string
+    Details:
+        - Auto-wraps on \n
+        - Uses internal get_text_width() for sizing
+
+## rect
+
+rect
+    Usage: pgui:component("rect", {size=vec(50,30), pos=vec(100,50)})
+    Options:
+        size      : vec(w,h)                -- Width and height
+        pos       : vec(x,y)                -- Position
+        color[4]  : number                  -- Fill color
+    Returns: "rect"
+    Details:
+        - Filled rectangle only (no border)
+        - Uses _rect() with fill=true, stroke=false
+
+--- box ----------------------------------------------------------------
+box
+    Usage: pgui:component("box", {size=vec(40,20), hover=true, active=true})
+    Options:
+        size      : vec(w,h)
+        pos       : vec(x,y)
+        hover     : bool (false)            -- Enable hover color
+        active    : bool (false)            -- Enable pressed color
+        stroke    : bool (true)             -- Draw border
+        color     : {n,h,a,s}
+    Returns: "box"
+    Details:
+        - Filled + border
+        - Changes color on hover/click if enabled
+
+--- button -------------------------------------------------------------
+button
+    Usage: local clicked = pgui:component("button", {text="Save"})
+    Options:
+        text      : string ("BUTTON")
+        margin    : number (2)              -- Padding
+        stroke    : bool (true)
+        disable   : bool (false)            -- Grays out
+        pos       : vec(x,y)
+        color     : {n,h,a,s}
+    Returns: true on click, false otherwise
+    Details:
+        - Auto-sizes to text + margin
+        - Uses text_box internally
+        - Disabled: no hover/active, returns false
+
+--- input (text field) -------------------------------------------------
+input
+    Usage: local txt = pgui:component("input", {label="name", text=""})
+    Options:
+        label     : string ("input")        -- Store key
+        text      : string ("INPUT")
+        char
