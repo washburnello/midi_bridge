@@ -1,4 +1,4 @@
---[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-02 17:37:17",revision=648,xstickers={}]]
+--[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-03 04:09:27",revision=736,xstickers={}]]
 -- Quick Listener Test (Server)
 poke(0x5f2d, 1)
 
@@ -9,6 +9,7 @@ include "lib/pgui.lua"
 
 function _init()
 	--Globals
+	pgui:set_store("disable_drop",false)
 	Sock = nil
 	IP = "localhost"
 	Port = 8899
@@ -16,30 +17,49 @@ function _init()
 	Info = nil
 	Notes = {}
 	Channels = {}
-	
+	temp1 = ""
+	temp2 = ""
+	inst_num = 1
 	-- Create 
 	
 	
 	-- Control variables
 	controls = {
-		pitchwheel = max(8191),
-		modwheel = max(127),
-		masterVol = max(127)
+		pitchwheel = {value = 0, control = nil},
+		modwheel = {value = 0, control = 1},
+		masterVol = {value = 127, control = nil}
 	}
 		-- No Pad Support at this time.
-	conMap = {
-		-- Mappings for test purposes on Code 49 MIDI keyboard.
-		-- Needs a dynamic mapper for custom control schemes.
+	midi_bindings = {
+		pitchwheel = (controls.pitchwheel.value + 8191) / 256,
+		modwheel = 1,
+		masterVol = 118,
+		fader1 = nil,
+		fader2 = nil,
+		fader3 = nil,
+		fader4 = nil,
+		fader5 = nil,
+		fader6 = nil,
+		fader7 = nil,
+		fader8 = nil,
+		con1 = nil,
+		con2 = nil,
+		con3 = nil,
+		con4 = nil,
+		con5 = nil,
+		con6 = nil,
+		con7 = nil,
+		con8 = nil
 	}
-	
 	
 	
 end
 
 
+
 function _update()
-	--Make socket if one does nto exist
-	--[[
+	--Make socket if one does not exist
+
 	if not Sock then
 		Sock = socket("tcp://"..IP..":"..Port)
 	end
@@ -64,22 +84,21 @@ function _update()
 		--Update Controls
 		
 	end
-	--]]
-	
-	win:update_all()
 
-   if win.w ~= last_w or win.h ~= last_h then
-       last_w, last_h = win.w, win.h
-       --win:refresh()
+	pgui:refresh() 
+	GUI_LEFT()
+	GUI_TOP()
+	if midi_bindings.masterVol == nil then
+		midi_bindings.masterVol = 1
 	end
 end
 
 
 function _draw()
---[[
+
 	cls(0)
 	print("Sock: " .. tostring(Sock.addr..":"..Sock.port), 0, 0, Sock and 11 or 8)
-	print("Info: " .. tostring(Info))
+	
 	
 	for i = 1, 2 do
 		for j = 1, 4 do
@@ -90,35 +109,38 @@ function _draw()
 			
 		end
 	end
-	--]]
-	cls(0)
-	win:update_all()
 
-   if win.w ~= last_w or win.h ~= last_h then
-       last_w, last_h = win.w, win.h
-       win:update_all()       -- <-- re-run all function() attributes
-   end
-	print(window_width)
-	print(window_height)
+	cls(6)
+	print("SIDEBAR OUTPUT:\n"..table_tree(temp1),300,20,8)
+	print(stack[2], 200, 200, 8)
+	print("Info: " .. tostring(Info))
+	print(test)
+	pgui:draw()
 end
 
-
+test = ""
 function spawn_note(_state, _note, _velocity, _channel)
 	if _state == "NOTE_ON" then
-		Notes[_note] = {state=_state, note=_note + (controls.pitchwheel / 8191), channel=_channel}
-		note(Notes[_note].note, 8, controls.masterVol * (_velocity/255), nil, nil, Notes[_note].channel)
+		Notes[_note] = {state=_state, note=_note, channel=_channel}
+		note(Notes[_note].note, inst_num, controls.masterVol.value * (_velocity/255), nil, nil, Notes[_note].channel)
 	elseif _state == "NOTE_OFF" then
 		note(0, 0, 0, nil, nil, Notes[_note].channel)
 	end
 end
 
 
-function update_controls(_state, _control, _value)
-	if _state == "CONTROL_CHANGE" then
-		controls._control = _value
+function update_controls(_state, _channel, _control, _value)
+	if _state == "CC" then
+		if _control == midi_bindings.masterVol then
+			controls.masterVol.value = _value
+		elseif _control == midi_bindings.modwheel then
+			controls.modwheel.value = _value
+		end
+		test = midi_bindings.masterVol
+		
 		print("Control Change   " .. tostring(_control) .. " " .. tostring(_value))
 	elseif _state == "PITCHWHEEL" then
-		controls.pitchwheel = _value
+		controls.pitchwheel.value = _value
 		print("Pitchwheel:   " .. tostring(_value))
 	end
 end

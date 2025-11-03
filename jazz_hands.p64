@@ -15,59 +15,120 @@ Change Log
 v0.1 (2025-09-22)
 -- Initial release
 :: gooey.lua
---[[pod_format="raw",created="2025-11-02 05:15:26",modified="2025-11-02 18:26:14",revision=111,xstickers={}]]
+--[[pod_format="raw",created="2025-11-02 05:15:26",modified="2025-11-03 04:03:32",revision=340,xstickers={}]]
 -- Nothing to see here..
 
 --[[pod_type="gfx"]]unpod("b64:bHo0AEQAAABCAAAA8DNweHUAQyAQEATwFV8VkG5wHj8PHoANDyAdDA0OgF2QXXAMIByQDBA8kBwAHAAMsBwADKAxDKABEAGwARABsAUQBVA=") 
 
 -- Just turning the gears..
+--include "main.lua"
 
-include "main.lua"
 
-window_width = 100
-window_height = 100
---[[
-win = create_gui({
 
-   width = 100,
-  	height = 100,
-  	title = "Jazz Hands!",
-	resizable = true,
+
+
+function GUI_LEFT()
 	
-	body = {
-		{
-			type="label", 
-			x=0, y=0, 
-			width=function() return win.w end, height=30
-		}
+	local horz_bar = {		}
+	
+	local contents = {
+		{"text", {text="Pitch Wheel"}},
+		{"hslider",{value=controls.pitchwheel.value}},
+		{"line",{size=vec(100,0)}},
+		{"line",{size=vec(100,0)}},
+		{"text", {text="Mod Wheel"}},
+		{"hslider",{value=controls.modwheel.value}},
+		{"line",{size=vec(100,0)}},
+		{"line",{size=vec(100,0)}},
+		{"text", {text="Master Volume"}},
+		{"hslider",{value=controls.masterVol.value}},
+		{"input",{label="myinput",text=tostr(midi_bindings.masterVol)}},
+		{"line",{size=vec(100,0)}},
+		{"line",{size=vec(100,0)}},
+		{"button",{text="Next Instrument",stroke=false}},
+		{"button",{text="Previous Instrument",stroke=false}},
 	}
-})
---]]
-win = create_gui({
-    title = "Responsive GUI",
-    x = 100, y = 80,
-    width = 400, height = 300,
-    resizable = true,
-    min_w = 200, min_h = 150,
-    body = {
-        -- Full-width header
-        {type="label", text="PICOTRON RESPONSIVE",
-         x=0, y=0,
-         width=function() return win.w end,
-         height=30,
-         style={bg_color=5, text_color=0, align="center"}},
+	
+	
+	stack = pgui:component("vstack",{pos=vec(0,0),contents=contents})
+	
+	midi_bindings.masterVol = tonumber(stack[11])
+	
+	controls.pitchwheel = {stack[2], stack[3]}
+	controls.masterVol.value = stack[10]
+	controls.modwheel.value = stack[6]
+	controls.masterVol.value = stack[10]
+	temp1 = stack
+	
+	--pgui:set_store("disable_drop",#contents[3] > 0) --to disable the menu dropdown when the overlapping topbar menu is open
+	
+	--Logic
+	if stack[14] and inst_num < 64 then
+		inst_num = inst_num + 1
+	elseif stack[15] and inst_num > 1 then
+		inst_num = inst_num - 1
+	end
+end
 
-        -- Centered button
-        {type="button", text="Close",
-         x=function() return win.width/2 - 50 end,
-         y=function() return win.height - 50 end,
-         width=100, height=30,
-         onclick=function() win:close() end},
-    }
-})
+function GUI_TOP()
 
--- 2. Track size changes and refresh layout
-last_w, last_h = win.width, win.height
+	local contents = {
+	
+		{"dropdown",{label="menu", text="Set Input:",stroke=false,contents = {
+		
+			{"button",{text="Master Volume",stroke=false}},
+			{"button",{text="Pitch Wheel",stroke=false}},
+			{"button",{text="Mod Wheel",stroke=false}},
+			
+			{"dropdown",{label="submenu",text="Faders",stroke=false,contents = {
+			
+				{"button",{text="Fader 1",stroke=false}},
+				{"button",{text="Fader 2",stroke=false}},
+				{"button",{text="Fader 3",stroke=false}},
+				{"button",{text="Fader 4",stroke=false}},
+				{"button",{text="Fader 5",stroke=false}}
+				
+			}}},
+			
+			{"button",{text="Knobs",stroke=false}},
+			disable=pgui:get_store("disable_drop")
+			
+		}}},
+		
+	}
+	stack = pgui:component("vstack",{pos=vec(120,0),contents=contents})
+--	pgui:set_store("disable_drop",#contents[3] > 0)
+	
+end
+
+function table_tree(table)
+	--Get a string representing the tree structure of a table
+	local level = 0
+	local tree = ""
+
+	if type(table) != "table" then
+		return tostring(table)
+	end
+	
+	local function recTree(table, level)
+		local tabs = ""
+		for i=1,level do tabs = tabs.."	" end	
+		
+		for k,v in pairs(table) do
+			if type(v) == "table" then
+				tree = tree..tabs.."<"..k..">\n"
+				recTree(v, level + 1)
+			else
+				tree = tree..tabs.."["..k.."]: "..tostring(v).."\n"
+			end
+		end
+	end
+	
+	recTree(table, level)
+	return tree
+end
+
+
 :: lib/pgui.lua
 --[[pod_format="raw",version="1.0.1",created="2024-04-17 13:28:56",notes="An Immediate Mode GUI Library",icon=userdata("u8",16,16,"000000010101010101010101010000000000010d0d0d0d0d0d0d0d0d0d01000000010d0d0d060606060606060d0d0100010d0d0d0606060606060606060d0d01010d0d06060607070707070706060d01010d0d06060707070101070707060d01010d0d06060707070101070707060d01010d0d06060707070101070707060d01010d0d06060607070707070706060d01010d0d06060606060606060606060d01010d0d0d0606060606060606060d0d0101010d0d0d060606060606060d0d0d010101010d0d0d0d0d0d0d0d0d0d0d0101000101010d0d0d0d0d0d0d0d0d0101000000010101010101010101010101000000000001010101010101010101000000"),revision=12390,modified="2024-07-06 17:43:37",title="pgui",author="Sergio Rodriguez Gomez"]]
 --[[
@@ -825,7 +886,7 @@ pgui = setmetatable({
 	{__index=pgui_methods}
 )
 :: main.lua
---[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-02 17:37:17",revision=648,xstickers={}]]
+--[[pod_format="raw",created="2025-09-24 15:09:21",modified="2025-11-03 04:09:27",revision=736,xstickers={}]]
 -- Quick Listener Test (Server)
 poke(0x5f2d, 1)
 
@@ -836,6 +897,7 @@ include "lib/pgui.lua"
 
 function _init()
 	--Globals
+	pgui:set_store("disable_drop",false)
 	Sock = nil
 	IP = "localhost"
 	Port = 8899
@@ -843,30 +905,49 @@ function _init()
 	Info = nil
 	Notes = {}
 	Channels = {}
-	
+	temp1 = ""
+	temp2 = ""
+	inst_num = 1
 	-- Create 
 	
 	
 	-- Control variables
 	controls = {
-		pitchwheel = max(8191),
-		modwheel = max(127),
-		masterVol = max(127)
+		pitchwheel = {value = 0, control = nil},
+		modwheel = {value = 0, control = 1},
+		masterVol = {value = 127, control = nil}
 	}
 		-- No Pad Support at this time.
-	conMap = {
-		-- Mappings for test purposes on Code 49 MIDI keyboard.
-		-- Needs a dynamic mapper for custom control schemes.
+	midi_bindings = {
+		pitchwheel = (controls.pitchwheel.value + 8191) / 256,
+		modwheel = 1,
+		masterVol = 118,
+		fader1 = nil,
+		fader2 = nil,
+		fader3 = nil,
+		fader4 = nil,
+		fader5 = nil,
+		fader6 = nil,
+		fader7 = nil,
+		fader8 = nil,
+		con1 = nil,
+		con2 = nil,
+		con3 = nil,
+		con4 = nil,
+		con5 = nil,
+		con6 = nil,
+		con7 = nil,
+		con8 = nil
 	}
-	
 	
 	
 end
 
 
+
 function _update()
-	--Make socket if one does nto exist
-	--[[
+	--Make socket if one does not exist
+
 	if not Sock then
 		Sock = socket("tcp://"..IP..":"..Port)
 	end
@@ -891,22 +972,21 @@ function _update()
 		--Update Controls
 		
 	end
-	--]]
-	
-	win:update_all()
 
-   if win.w ~= last_w or win.h ~= last_h then
-       last_w, last_h = win.w, win.h
-       --win:refresh()
+	pgui:refresh() 
+	GUI_LEFT()
+	GUI_TOP()
+	if midi_bindings.masterVol == nil then
+		midi_bindings.masterVol = 1
 	end
 end
 
 
 function _draw()
---[[
+
 	cls(0)
 	print("Sock: " .. tostring(Sock.addr..":"..Sock.port), 0, 0, Sock and 11 or 8)
-	print("Info: " .. tostring(Info))
+	
 	
 	for i = 1, 2 do
 		for j = 1, 4 do
@@ -917,35 +997,38 @@ function _draw()
 			
 		end
 	end
-	--]]
-	cls(0)
-	win:update_all()
 
-   if win.w ~= last_w or win.h ~= last_h then
-       last_w, last_h = win.w, win.h
-       win:update_all()       -- <-- re-run all function() attributes
-   end
-	print(window_width)
-	print(window_height)
+	cls(6)
+	print("SIDEBAR OUTPUT:\n"..table_tree(temp1),300,20,8)
+	print(stack[2], 200, 200, 8)
+	print("Info: " .. tostring(Info))
+	print(test)
+	pgui:draw()
 end
 
-
+test = ""
 function spawn_note(_state, _note, _velocity, _channel)
 	if _state == "NOTE_ON" then
-		Notes[_note] = {state=_state, note=_note + (controls.pitchwheel / 8191), channel=_channel}
-		note(Notes[_note].note, 8, controls.masterVol * (_velocity/255), nil, nil, Notes[_note].channel)
+		Notes[_note] = {state=_state, note=_note, channel=_channel}
+		note(Notes[_note].note, inst_num, controls.masterVol.value * (_velocity/255), nil, nil, Notes[_note].channel)
 	elseif _state == "NOTE_OFF" then
 		note(0, 0, 0, nil, nil, Notes[_note].channel)
 	end
 end
 
 
-function update_controls(_state, _control, _value)
-	if _state == "CONTROL_CHANGE" then
-		controls._control = _value
+function update_controls(_state, _channel, _control, _value)
+	if _state == "CC" then
+		if _control == midi_bindings.masterVol then
+			controls.masterVol.value = _value
+		elseif _control == midi_bindings.modwheel then
+			controls.modwheel.value = _value
+		end
+		test = midi_bindings.masterVol
+		
 		print("Control Change   " .. tostring(_control) .. " " .. tostring(_value))
 	elseif _state == "PITCHWHEEL" then
-		controls.pitchwheel = _value
+		controls.pitchwheel.value = _value
 		print("Pitchwheel:   " .. tostring(_value))
 	end
 end
@@ -1481,7 +1564,7 @@ Logline about this game
 
 
 :: .info.pod
---[[pod,author="@washburnello",created="2025-10-12 14:49:30",icon=userdata("u8",16,16,"00000000000000000000000000000000010101010101010101010101010101010107070707070707070707070707070101070d1d0d0d1d0d0d1d0d0d1d0d070101071d0d09090d1d1d0d09090d1d070101070d0d0909090d0d0909090d0d070101070d090909090d0d090909090d070101071d0d0909090d0d0909090d1d070101070d1d0d090d0d0d0d090d1d0d0701010707070707070707070707070707010107071d1d1d1d1d1d1d1d1d070707010107071d1d1d1d1d1d1d1d1d07071d01010707070707070707070707071d0100011d1d1d1d1d1d1d1d1d1d1d1d0100000101010101010101010101010100000000000000000000000000000000000000"),modified="2025-11-02 19:54:05",notes="Midi support in Picotron",runtime=22,title="Jazz Hands",version="0.0",workspaces={{location="src/debug.lua",workspace_index=1},{location="src/design.lua#55",workspace_index=1},{location="main.lua#4,25",workspace_index=1},{location="sock_troll.lua",workspace_index=1},{location="gooey.lua#2,1",workspace_index=1},{location="lib/pgui.lua",workspace_index=1},{location="lib/pGui_api.txt#14,1",workspace_index=1},{location="lib/pGui_demo_analysis.txt#316,1",workspace_index=1},{location="gfx/0.gfx",workspace_index=2},{location="map/0.map",workspace_index=3},{location="sfx/0.sfx",workspace_index=4}}]]
+--[[pod,author="@washburnello",created="2025-10-12 14:49:30",icon=userdata("u8",16,16,"00000000000000000000000000000000010101010101010101010101010101010107070707070707070707070707070101070d1d0d0d1d0d0d1d0d0d1d0d070101071d0d09090d1d1d0d09090d1d070101070d0d0909090d0d0909090d0d070101070d090909090d0d090909090d070101071d0d0909090d0d0909090d1d070101070d1d0d090d0d0d0d090d1d0d0701010707070707070707070707070707010107071d1d1d1d1d1d1d1d1d070707010107071d1d1d1d1d1d1d1d1d07071d01010707070707070707070707071d0100011d1d1d1d1d1d1d1d1d1d1d1d0100000101010101010101010101010100000000000000000000000000000000000000"),modified="2025-11-03 04:09:27",notes="Midi support in Picotron",runtime=22,title="Jazz Hands",version="0.0",workspaces={{location="src/debug.lua",workspace_index=1},{location="src/design.lua#55",workspace_index=1},{location="sock_troll.lua",workspace_index=1},{location="lib/pgui.lua",workspace_index=1},{location="main.lua#136,36",workspace_index=1},{location="gooey.lua#37,2",workspace_index=1},{location="lib/pGui_api.txt#14,1",workspace_index=1},{location="lib/pGui_demo_analysis.txt#316,1",workspace_index=1},{location="gfx/0.gfx",workspace_index=2},{location="map/0.map",workspace_index=3},{location="sfx/0.sfx",workspace_index=4}}]]
 :: ReadMe.txt
 b64$LS1bW3BvZF9mb3JtYXQ9InJhdyIsY3JlYXRlZD0iMjAyNS0wMi0yMyAwMzozOToyMCIsbW9k
 aWZpZWQ9IjIwMjUtMDktMjQgMTQ6NTM6NDIiLHJldmlzaW9uPTQwOV1dCi09PT09PT09PT09PT09
@@ -1498,7 +1581,7 @@ d0FnSUJXc0FDRXdSU2tBTUNBMXNGOEE4QW53QkNYd0VoWHdBalh3RVFWUUJWQUZZQ1h3RVFWZ1ZX
 QVFBR0FBRmVBRkVDVWxBUEFCQXpYd0VnVUFCZkFBTmZBVUZTQUZnSzhBUUJYd0ZrVndBSkFRQlFC
 RjhCbmw4REk9IikKCgoKRW5kLAoKLS1UaGFua3MgZm9yIFJlYWRpbmcgTWUghw==
 :: gfx/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-03 04:09:27"]]
 :: gfx/0.gfx
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0x
 MS0wMiAwNToyNToyNSIscmV2aXNpb249NF1dbHo0ALoAAABJMQAA8yF7WzBdPXtibXA9cHh1AEMg
@@ -1509,7 +1592,7 @@ Hj8PHoANDyAdDA0OgF2QXXAMIByQDBA8kBwAHAAMsBwADKAxDKABEAGwBABPBRAFUGgAHR-wMQD-
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE5OjA0OjA1Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxOTowNDowNSIscmV2aXNpb249MV1dbHo0AAQAAAADAAAAMG5pbA==
 :: lib/.info.pod
---[[pod,created="2025-11-02 17:36:32",modified="2025-11-02 19:54:05"]]
+--[[pod,created="2025-11-02 17:36:32",modified="2025-11-03 04:09:27"]]
 :: lib/pGui_api.txt
 b64$LS1bW3BvZF9mb3JtYXQ9InJhdyIsY3JlYXRlZD0iMjAyNS0xMS0wMiAxODowMzozNSIsbW9k
 aWZpZWQ9IjIwMjUtMTEtMDIgMTk6NTQ6MDUiLHJldmlzaW9uPTMseHN0aWNrZXJzPXt9XV0KLS0g
@@ -1880,14 +1963,14 @@ b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE3OjAzOjU2Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxNzoxMjozOSIscmV2aXNpb249NDI4M11dbHo0AC8AAAAtAAAA8B57YWRkcj0ibG9jYWxo
 b3N0IixpZD0xOSxwb3J0PTg4OTkscHJvdD0idGNwIn0=
 :: map/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-03 04:09:27"]]
 :: map/0.map
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTAxLTE3IDEwOjM1OjQ4Iixtb2RpZmllZD0iMjAyNS0x
 MC0yOSAxNTowOToyMCIscmV2aXNpb249Ml1dbHo0AEwAAABQAAAA8Rx7e2JtcD1weHUATIAgIAD-
 AAD---8DLGhpZGRlbj1mYWxzZSxwYW5feD0wCADSeT0wLHRpbGVfaD0xNgoAEHcKAIB6b29tPTF9
 fQ==
 :: sfx/.info.pod
---[[pod,created="2025-10-12 14:49:30",modified="2025-11-02 19:54:05"]]
+--[[pod,created="2025-10-12 14:49:30",modified="2025-11-03 04:09:27"]]
 :: sfx/0.sfx
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTA3LTMxIDA4OjMwOjI4Iixtb2RpZmllZD0iMjAyNS0x
 MC0zMCAwMzoxODoxMiIscmV2aXNpb249Ml1dbHo0ADsCAAAYCwAA-zBweHUAAygAAAQABA9AEAIO
@@ -1905,5 +1988,5 @@ b-AJARAGBC0A----yR--AQCsv8gPQAAPEEDzsPD-AQD-6lD-----KQ==
 b64$LS1bW3BvZCxjcmVhdGVkPSIyMDI1LTEwLTI5IDE4OjU0OjA4Iixtb2RpZmllZD0iMjAyNS0x
 MC0zMCAwMTozNTowMSIscmV2aXNpb249MTY4OTRdXWx6NAAEAAAAAwAAADBuaWw=
 :: src/.info.pod
---[[pod,created="2025-09-24 14:52:47",modified="2025-11-02 19:54:05"]]
+--[[pod,created="2025-09-24 14:52:47",modified="2025-11-03 04:09:27"]]
 :: [eoc]

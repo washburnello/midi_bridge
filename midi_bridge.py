@@ -126,18 +126,27 @@ def handle_midi_messages(inport):
             for channel in list(channels_in_use):
                 msg_str = f"CC:{channel}:{control}:{value}"
                 send_message(msg_str)
+                break
+            msg_str = f"CC:1:{control}:{value}"
+            send_message(msg_str)
         elif msg.type == 'pitchwheel':
             pitch = msg.pitch
             print(f"Processed PITCHWHEEL: Pitch={pitch} (-8192 to 8191) | Applying to {len(channels_in_use)} active channels")
             for channel in list(channels_in_use):
                 msg_str = f"PITCHWHEEL:{channel}:{pitch}"
                 send_message(msg_str)
+                break
+            msg_str = f"PITCHWHEEL:1:{pitch}"
+            send_message(msg_str)
         elif msg.type == 'program_change':
             program = msg.program
             print(f"Processed PROGRAM_CHANGE: Program={program} | Applying to {len(channels_in_use)} active channels")
             for channel in list(channels_in_use):
                 msg_str = f"PROGRAM:{channel}:{program}"
                 send_message(msg_str)
+                break
+            msg_str = f"PROGRAM:1:{program}"
+            send_message(msg_str)
         elif msg.type == 'channel_pressure':
             value = msg.value
             print(f"Processed CHANNEL_PRESSURE (Aftertouch): Value={value} | Applying to {len(channels_in_use)} active channels")
@@ -237,10 +246,10 @@ try:
     print(f"Available MIDI inputs: {available_ports}")
     port_name = None
     for port in available_ports:
-        if 'DONNER N32' in port.upper():  # Prioritize exact match for Donner N-32 device
+        if 'Code 49' in port.upper():  # Prioritize exact match for Donner N-32 device
             port_name = port
             break
-    port_name = port_name or available_ports[0] if available_ports else None
+    port_name = port_name or available_ports[4] if available_ports else None
     if port_name:
         inport = open_input(port_name)
         print(f"Listening to MIDI input: {inport.name}")
